@@ -11,8 +11,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,6 +65,7 @@ fun CheckoutScreen(
     val langState = LocalLanguage.current
     val lang = langState.value
     val scrollState = rememberScrollState()
+    val smsContext = LocalContext.current
     val highlightState = LocalTutorialHighlightState.current
     val scrollStateHolder = LocalTutorialScrollStateHolder.current
     LaunchedEffect(scrollState) { scrollStateHolder.updateScrollState(scrollState) }
@@ -91,11 +95,17 @@ fun CheckoutScreen(
     var selectedProductId by remember { mutableIntStateOf(-1) }
     var quantity by remember { mutableIntStateOf(1) }
     var customerName by remember { mutableStateOf("") }
+    var customerPhone by remember { mutableStateOf("") }
     var showSuggestions by remember { mutableStateOf(false) }
     var isEditingQty by remember { mutableStateOf(false) }
     var qtyText by remember { mutableStateOf("1") }
     // Discard-confirm dialog for leaving with a non-empty cart
     var showDiscardDialog by remember { mutableStateOf(false) }
+    // SMS receipt prompt after credit sale
+    var showSmsReceiptDialog by remember { mutableStateOf(false) }
+    var smsReceiptCustomerName by remember { mutableStateOf("") }
+    var smsReceiptPhone by remember { mutableStateOf("") }
+    var smsReceiptAmount by remember { mutableStateOf(0.0) }
 
     val focusManager = LocalFocusManager.current
     val selectedProduct = products.find { it.id == selectedProductId }
@@ -181,6 +191,7 @@ fun CheckoutScreen(
         selectedProductId = -1
         quantity = 1
         customerName = ""
+        customerPhone = ""
         showSuggestions = false
         isEditingQty = false
         qtyText = "1"
@@ -206,8 +217,31 @@ fun CheckoutScreen(
                 if (cs.overLimit) return // inline banner + Allow anyway are the alert
             }
         }
+        // Validate phone number if provided
+        val normalizedPhone = if (customerPhone.isNotBlank()) {
+            com.example.tindago.data.SmsHelper.normalizePhoneNumber(customerPhone)
+        } else null
+        if (customerPhone.isNotBlank() && normalizedPhone == null) {
+            toast("smsPhoneInvalid".t(lang))
+            return
+        }
+
         val ok = viewModel.completeSale(customerName, force)
         if (ok) {
+            // Save phone number to the customer's debt record if provided
+            if (normalizedPhone != null && payment == "credit") {
+                val existingDebt = viewModel.getDebtForName(customerName)
+                if (existingDebt != null) {
+                    viewModel.updateDebtPhoneNumber(existingDebt.id, normalizedPhone)
+                }
+            }
+            // Show SMS receipt prompt for credit sales with a phone number
+            if (payment == "credit" && normalizedPhone != null) {
+                smsReceiptCustomerName = customerName
+                smsReceiptPhone = normalizedPhone
+                smsReceiptAmount = cartTotal
+                showSmsReceiptDialog = true
+            }
             toast("saleCompleted".t(lang))
             resetForm()
         }
@@ -567,6 +601,20 @@ fun CheckoutScreen(
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
                         )
+
+                        // Phone number field (SMS feature)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("smsPhoneNumber".t(lang), style = MaterialTheme.typography.labelMedium, color = Gray500)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = customerPhone,
+                            onValueChange = { customerPhone = it },
+                            placeholder = { Text("smsPhonePlaceholder".t(lang)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                        )
                         if (customerName.isNotEmpty() && filteredCustomers.isNotEmpty()) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -723,6 +771,50 @@ fun CheckoutScreen(
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
                     Text("cancel".t(lang), color = Gray600)
+                }
+            }
+        )
+    }
+
+    // SMS receipt prompt after credit sale
+    if (showSmsReceiptDialog) {
+        AlertDialog(
+            onDismissRequest = { showSmsReceiptDialog = false },
+            icon = { Icon(Icons.Default.Sms, contentDescription = null, tint = Green700) },
+            title = { Text("smsReceiptTitle".t(lang), fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        "smsReceiptMsg".t(lang)
+                            .replace("{name}", smsReceiptCustomerName)
+                            .replace("{amount}", "₱" + String.format(java.util.Locale.US, "%,.2f", smsReceiptAmount)),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        smsReceiptPhone,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Gray400
+                    )
+                }
+            },
+            confirmButton = {                    TextButton(
+                    onClick = {
+                        showSmsReceiptDialog = false
+                        val smsCtx = smsContext
+                        val msg = com.example.tindago.data.SmsHelper.buildReceiptMessage(
+                            smsReceiptCustomerName, smsReceiptAmount, viewModel.getStoreName(),
+                            smsReceiptAmount, lang
+                        )
+                        com.example.tindago.data.SmsHelper.sendSmsIntent(smsCtx, smsReceiptPhone, msg)
+                    }
+                ) {
+                    Text("smsReceiptSend".t(lang), color = Green700, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSmsReceiptDialog = false }) {
+                    Text("smsReceiptSkip".t(lang), color = Gray600)
                 }
             }
         )

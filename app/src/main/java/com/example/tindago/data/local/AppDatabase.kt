@@ -20,9 +20,10 @@ import com.example.tindago.data.local.entity.*
         RestockLogEntity::class,
         DebtPaymentEntity::class,
         DebtTransactionEntity::class,
-        ExpenseEntity::class
+        ExpenseEntity::class,
+        SmsLogEntity::class
     ],
-    version = 9,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,6 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun debtPaymentDao(): DebtPaymentDao
     abstract fun debtTransactionDao(): DebtTransactionDao
     abstract fun expenseDao(): ExpenseDao
+    abstract fun smsLogDao(): SmsLogDao
 
     companion object {
         @Volatile
@@ -48,7 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "tindago_db"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
@@ -163,6 +165,38 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL("ALTER TABLE `end_of_day_data` ADD COLUMN `expenses` REAL NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `end_of_day_data` ADD COLUMN `netProfit` REAL NOT NULL DEFAULT 0")
+            }
+        }
+
+        /**
+         * v9 → v10: add SMS fields to customer_debts (phone number + opt-in).
+         * Non-destructive: existing debts keep their data, new columns default to empty/null.
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `customer_debts` ADD COLUMN `phoneNumber` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `customer_debts` ADD COLUMN `smsOptIn` INTEGER")
+            }
+        }
+
+        /**
+         * v10 → v11: create sms_log table for tracking SMS send attempts.
+         */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `sms_log` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`debtId` INTEGER NOT NULL, " +
+                        "`customerName` TEXT NOT NULL, " +
+                        "`phoneNumber` TEXT NOT NULL, " +
+                        "`type` TEXT NOT NULL, " +
+                        "`messageBody` TEXT NOT NULL, " +
+                        "`status` TEXT NOT NULL, " +
+                        "`timestamp` INTEGER NOT NULL)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_sms_log_debtId` ON `sms_log` (`debtId`)"
+                )
             }
         }
     }

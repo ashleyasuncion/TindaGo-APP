@@ -46,6 +46,7 @@ fun NewDebtScreen(
 
     var customerName by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var showSuggestions by remember { mutableStateOf(false) }
 
     val debts by viewModel.debts.collectAsState()
@@ -117,12 +118,25 @@ fun NewDebtScreen(
                 return
             }
         }
+        // Validate phone number if provided
+        val normalizedPhone = if (phoneNumber.isNotBlank()) {
+            com.example.tindago.data.SmsHelper.normalizePhoneNumber(phoneNumber)
+        } else null
+        if (phoneNumber.isNotBlank() && normalizedPhone == null) {
+            snackbarScope.launch { snackbarHost.showSnackbar("smsPhoneInvalid".t(lang)) }
+            return
+        }
+
         // Check if customer already exists
         val existingDebt = viewModel.debts.value.find {
             it.customerName.equals(name, ignoreCase = true)
         }
         if (existingDebt != null) {
             viewModel.addToDebtBalance(existingDebt.id, debtAmount)
+            // Update phone number if provided
+            if (normalizedPhone != null) {
+                viewModel.updateDebtPhoneNumber(existingDebt.id, normalizedPhone)
+            }
             // Ledger entry (web saveNewDebt parity: description = "Manual")
             viewModel.addDebtTransaction(existingDebt.id, "debt", "Manual", debtAmount)
         } else {
@@ -131,7 +145,8 @@ fun NewDebtScreen(
                     id = 0,
                     customerName = name,
                     amount = debtAmount,
-                    remainingBalance = debtAmount
+                    remainingBalance = debtAmount,
+                    phoneNumber = normalizedPhone ?: ""
                 )
             )
             viewModel.addDebtTransaction(newDebt.id, "debt", "Manual", debtAmount)
@@ -239,6 +254,22 @@ fun NewDebtScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Phone Number (SMS feature) ────────────────────────────
+            Text("smsPhoneNumber".t(lang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(6.dp))
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                placeholder = { Text("smsPhonePlaceholder".t(lang)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+                supportingText = { Text("smsPhoneHint".t(lang), style = MaterialTheme.typography.bodySmall) },
+                shape = MaterialTheme.shapes.medium
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 

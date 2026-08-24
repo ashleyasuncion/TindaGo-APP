@@ -72,7 +72,8 @@ fun NavGraph(
             restockLogDao = app.database.restockLogDao(),
             debtPaymentDao = app.database.debtPaymentDao(),
             debtTransactionDao = app.database.debtTransactionDao(),
-            expenseDao = app.database.expenseDao()
+            expenseDao = app.database.expenseDao(),
+            smsLogDao = app.database.smsLogDao()
         )
     }
     LaunchedEffect(Unit) {

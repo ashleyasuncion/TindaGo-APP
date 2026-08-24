@@ -18,7 +18,8 @@ class AppRepository(
     private val restockLogDao: RestockLogDao,
     private val debtPaymentDao: DebtPaymentDao,
     private val debtTransactionDao: DebtTransactionDao,
-    private val expenseDao: ExpenseDao
+    private val expenseDao: ExpenseDao,
+    private val smsLogDao: SmsLogDao
 ) {
     // ── Products ────────────────────────────────────────────────────────
     fun getAllProducts(): Flow<List<Product>> =
@@ -80,6 +81,16 @@ class AppRepository(
 
     suspend fun updateDebt(debt: CustomerDebt) =
         customerDebtDao.updateDebt(CustomerDebtEntity.fromDomainModel(debt))
+
+    suspend fun updateDebtPhoneNumber(debtId: Int, phoneNumber: String) {
+        val debt = customerDebtDao.getDebtById(debtId) ?: return
+        customerDebtDao.updateDebt(debt.copy(phoneNumber = phoneNumber))
+    }
+
+    suspend fun updateDebtSmsOptIn(debtId: Int, optIn: Boolean) {
+        val debt = customerDebtDao.getDebtById(debtId) ?: return
+        customerDebtDao.updateDebt(debt.copy(smsOptIn = if (optIn) 1 else 0))
+    }
 
     suspend fun deleteDebt(id: Int) = customerDebtDao.deleteDebt(id)
 
@@ -163,6 +174,20 @@ class AppRepository(
 
     suspend fun deleteAllExpenses() = expenseDao.deleteAll()
 
+    // ── SMS Log ─────────────────────────────────────────────────────
+    fun getAllSmsLogs() = smsLogDao.getAllLogs()
+
+    suspend fun getLatestSmsLog(debtId: Int, type: String) =
+        smsLogDao.getLatestLogByDebtAndType(debtId, type)
+
+    suspend fun getSmsLogsSince(debtId: Int, type: String, since: Long) =
+        smsLogDao.getLogsSince(debtId, type, since)
+
+    suspend fun insertSmsLog(log: com.example.tindago.data.local.entity.SmsLogEntity) =
+        smsLogDao.insertLog(log)
+
+    suspend fun deleteAllSmsLogs() = smsLogDao.deleteAll()
+
     // ── Batch operations ────────────────────────────────────────────────
     suspend fun deleteAll() {
         deleteAllProducts()
@@ -174,5 +199,6 @@ class AppRepository(
         endOfDayDao.deleteAll()
         deleteAllRestockLogs()
         deleteAllExpenses()
+        deleteAllSmsLogs()
     }
 }

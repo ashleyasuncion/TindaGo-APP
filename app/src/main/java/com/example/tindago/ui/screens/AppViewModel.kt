@@ -1005,6 +1005,9 @@ class AppViewModel : ViewModel() {
     /** Global default credit limit (₱). 0 = no limit. Falls back to 500. */
     fun getDefaultCreditLimit(): Int = appSettings?.defaultCreditLimit ?: 500
 
+    /** Store name from Settings (used in SMS messages). */
+    fun getStoreName(): String = appSettings?.storeName ?: "My Store"
+
     /** The debt record for a customer name — active (balance > 0) first, else
      *  a settled record, else null. Mirrors web getDebtForName(). */
     fun getDebtForName(name: String): CustomerDebt? {
@@ -1057,6 +1060,26 @@ class AppViewModel : ViewModel() {
         val index = updated.indexOfFirst { it.id == debtId }
         if (index >= 0) {
             updated[index] = updated[index].copy(creditLimit = limit)
+            _debts.value = updated
+        }
+    }
+
+    /** Update a customer's phone number (SMS feature). */
+    fun updateDebtPhoneNumber(debtId: Int, phoneNumber: String) {
+        val updated = _debts.value.toMutableList()
+        val index = updated.indexOfFirst { it.id == debtId }
+        if (index >= 0) {
+            updated[index] = updated[index].copy(phoneNumber = phoneNumber)
+            _debts.value = updated
+        }
+    }
+
+    /** Update a customer's SMS opt-in preference. */
+    fun updateDebtSmsOptIn(debtId: Int, optIn: Boolean) {
+        val updated = _debts.value.toMutableList()
+        val index = updated.indexOfFirst { it.id == debtId }
+        if (index >= 0) {
+            updated[index] = updated[index].copy(smsOptIn = optIn)
             _debts.value = updated
         }
     }

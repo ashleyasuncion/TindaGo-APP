@@ -12,7 +12,11 @@ data class CustomerDebtEntity(
     val remainingBalance: Double,
     val createdAt: Long = System.currentTimeMillis(),
     /** Per-customer credit limit; null = uses global default (web v2.56 parity). */
-    val creditLimit: Int? = null
+    val creditLimit: Int? = null,
+    /** Customer's mobile phone number (SMS feature). Empty = not provided. */
+    val phoneNumber: String = "",
+    /** Whether the customer has opted in to SMS reminders. null = not yet asked. */
+    val smsOptIn: Int? = null  // 0 = false, 1 = true, null = not asked
 ) {
     fun toDomainModel(): CustomerDebt = CustomerDebt(
         id = id,
@@ -20,7 +24,9 @@ data class CustomerDebtEntity(
         amount = amount,
         remainingBalance = remainingBalance,
         createdAt = createdAt,
-        creditLimit = creditLimit
+        creditLimit = creditLimit,
+        phoneNumber = phoneNumber,
+        smsOptIn = smsOptIn?.let { it == 1 }
     )
 
     companion object {
@@ -30,7 +36,9 @@ data class CustomerDebtEntity(
             amount = debt.amount,
             remainingBalance = debt.remainingBalance,
             createdAt = debt.createdAt,
-            creditLimit = debt.creditLimit
+            creditLimit = debt.creditLimit,
+            phoneNumber = debt.phoneNumber,
+            smsOptIn = debt.smsOptIn?.let { if (it) 1 else 0 }
         )
     }
 }

@@ -119,6 +119,32 @@ class AppSettings(context: Context) {
         get() = prefs.getStringSet("notified_keys", emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet("notified_keys", value).apply()
 
+    // ── SMS settings (automated debt reminders) ──
+    /** Master SMS on/off switch. */
+    var smsEnabled: Boolean
+        get() = prefs.getBoolean("sms_enabled", false)  // off by default
+        set(value) = prefs.edit().putBoolean("sms_enabled", value).apply()
+
+    /** SMS reminder interval in days (minimum 3). */
+    var smsReminderDays: Int
+        get() = prefs.getInt("sms_reminder_days", 7)
+        set(value) = prefs.edit().putInt("sms_reminder_days", value.coerceAtLeast(3)).apply()
+
+    /** Quiet hours start (0-23). No SMS before this hour. */
+    var smsQuietHoursStart: Int
+        get() = prefs.getInt("sms_quiet_start", 8)
+        set(value) = prefs.edit().putInt("sms_quiet_start", value.coerceIn(0, 23)).apply()
+
+    /** Quiet hours end (0-23). No SMS after this hour. */
+    var smsQuietHoursEnd: Int
+        get() = prefs.getInt("sms_quiet_end", 20)
+        set(value) = prefs.edit().putInt("sms_quiet_end", value.coerceIn(0, 23)).apply()
+
+    /** Whether to send a final "fully paid" confirmation SMS. */
+    var smsSendPaidConfirmation: Boolean
+        get() = prefs.getBoolean("sms_paid_confirm", true)
+        set(value) = prefs.edit().putBoolean("sms_paid_confirm", value).apply()
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }

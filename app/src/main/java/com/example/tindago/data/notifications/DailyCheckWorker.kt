@@ -88,7 +88,8 @@ suspend fun runNotificationCheck(app: TindaGoApp, check: String, force: Boolean)
         restockLogDao = app.database.restockLogDao(),
         debtPaymentDao = app.database.debtPaymentDao(),
         debtTransactionDao = app.database.debtTransactionDao(),
-        expenseDao = app.database.expenseDao()
+        expenseDao = app.database.expenseDao(),
+        smsLogDao = app.database.smsLogDao()
     )
     val products = repo.getAllProducts().first()
     val debts = repo.getAllDebts().first()

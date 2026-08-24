@@ -111,6 +111,18 @@ fun SettingsScreen(
         }
     }
 
+    val smsPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            scope.launch { snackbarHostState.showSnackbar("SMS permission granted.") }
+        } else {
+            // Revert the toggle if permission denied
+            settings.smsEnabled = false
+            scope.launch { snackbarHostState.showSnackbar("smsPermissionNeeded".t(settings.language)) }
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -342,7 +354,43 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Notification timing info card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            "notifTimingHeader".t(settings.language),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            "notifTimingDesc".t(settings.language),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Closing reminder hour (6-21) — device-aware time format
+                Text(
+                    "closingReminderHour".t(settings.language),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = Gray800
+                )
+                Text(
+                    "closingReminderHourDesc".t(settings.language),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Gray400
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 val is24h = AndroidDateFormat.is24HourFormat(context)
                 val storedHour = settings.closingReminderHour
 
@@ -532,6 +580,175 @@ fun SettingsScreen(
                 Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("reportsTitle".t(settings.language))
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ═══════════════════════════════════════════════════════
+            // ── SMS Notifications ──
+            // ═══════════════════════════════════════════════════════
+            SettingsSectionTitle("smsSectionTitle".t(settings.language))
+            Text(
+                "smsSectionDesc".t(settings.language),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Master toggle
+            var smsEnabled by remember { mutableStateOf(settings.smsEnabled) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "smsMasterToggle".t(settings.language),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        "smsMasterToggleDesc".t(settings.language),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = smsEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled) {
+                            // Request SEND_SMS permission first
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                                ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.SEND_SMS
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+                                return@Switch
+                            }
+                        }
+                        smsEnabled = enabled
+                        settings.smsEnabled = enabled
+                        // Reschedule/cancel SMS worker
+                        com.example.tindago.data.notifications.SmsWorker.schedule(
+                            context, enabled, settings.smsReminderDays
+                        )
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                if (enabled) "smsWorkerScheduled".t(settings.language)
+                                else "smsWorkerCancelled".t(settings.language)
+                            )
+                        }
+                    }
+                )
+            }
+
+            if (smsEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Frequency
+                Text(
+                    "smsFrequency".t(settings.language),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                var reminderDays by remember { mutableStateOf(settings.smsReminderDays) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(3, 7, 14).forEach { days ->
+                        FilterChip(
+                            selected = reminderDays == days,
+                            onClick = {
+                                reminderDays = days
+                                settings.smsReminderDays = days
+                                com.example.tindago.data.notifications.SmsWorker.schedule(
+                                    context, true, days
+                                )
+                            },
+                            label = { Text("$days days") }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Quiet hours
+                Text(
+                    "smsQuietHours".t(settings.language),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "smsQuietHoursDesc".t(settings.language),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                var quietStart by remember { mutableStateOf(settings.smsQuietHoursStart) }
+                var quietEnd by remember { mutableStateOf(settings.smsQuietHoursEnd) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = quietStart.toString(),
+                        onValueChange = { v ->
+                            val h = v.toIntOrNull()?.coerceIn(0, 23) ?: 8
+                            quietStart = h
+                            settings.smsQuietHoursStart = h
+                        },
+                        label = { Text("From") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    Text("—")
+                    OutlinedTextField(
+                        value = quietEnd.toString(),
+                        onValueChange = { v ->
+                            val h = v.toIntOrNull()?.coerceIn(0, 23) ?: 20
+                            quietEnd = h
+                            settings.smsQuietHoursEnd = h
+                        },
+                        label = { Text("To") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Paid confirmation toggle
+                var smsPaidConfirm by remember { mutableStateOf(settings.smsSendPaidConfirmation) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "smsPaidConfirm".t(settings.language),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "smsPaidConfirmDesc".t(settings.language),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = smsPaidConfirm,
+                        onCheckedChange = {
+                            smsPaidConfirm = it
+                            settings.smsSendPaidConfirmation = it
+                        }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

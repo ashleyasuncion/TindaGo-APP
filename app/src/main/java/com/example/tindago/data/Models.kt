@@ -86,7 +86,11 @@ data class CustomerDebt(
     val createdAt: Long = System.currentTimeMillis(),
     /** Per-customer credit limit (web v2.56 parity). null = uses the global
      *  default; 0 = no limit for this customer. */
-    val creditLimit: Int? = null
+    val creditLimit: Int? = null,
+    /** Customer's mobile phone number (SMS feature). Empty = not provided. */
+    val phoneNumber: String = "",
+    /** Whether the customer has opted in to SMS reminders. null = not yet asked. */
+    val smsOptIn: Boolean? = null
 )
 
 data class EndOfDayData(

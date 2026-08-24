@@ -1,7 +1,7 @@
 ================================================================================
 TINDAGO — KOTLIN ANDROID APP PROGRESS
 ================================================================================
-Date: Aug 18–20, 2026
+Date: Aug 18–22, 2026
 Project: TindaGo Android App (formerly Sari-sari_smart)
 ================================================================================
 
@@ -22,7 +22,7 @@ All 5 frontend stages + Room Database + Notifications + Testing:
   Stage 6 — Local Notifications (WorkManager, 4 channels, rules + throttle) ✓
   Tests  — 89 unit tests (all passing) ✓
 
-Three pillars: Stock Tracker | Daily Cash Summary | Utang Notebook
+Three pillars: Stock Tracker | Daily Cash Summary | Utang Notebook | SMS Notifications
 
 ================================================================================
 APP ARCHITECTURE (Current)
@@ -32,7 +32,7 @@ Tech Stack:
   - Language: Kotlin 2.0.21
   - UI: Jetpack Compose + Material3
   - Navigation: Navigation Compose
-  - Persistence: Room Database (9 entities, 9 DAOs, AppDatabase, AppRepository)
+  -  Persistence: Room Database (11 entities, 11 DAOs, AppDatabase, AppRepository)
   - Settings: DataStore (tindago_prefs)
   - Notifications: WorkManager + NotificationCompat (4 channels)
   - DI: Manual (TindaGoApp.applicationContext)
@@ -49,13 +49,17 @@ Package Structure:
     │   ├── local/
     │   │   ├── AppDatabase.kt     — Room database singleton (tindago_db)
     │   │   ├── Converters.kt      — Type converters
-    │   │   ├── dao/               — 9 DAOs (Product, DailyEntry, SpecificSale,
+    │   │   ├── dao/               — 11 DAOs (Product, DailyEntry, SpecificSale,
     │   │   │                        CustomerDebt, EndOfDay, RestockLog,
-    │   │   │                        DebtPayment, DebtTransaction, Expense)
-    │   │   └── entity/            — 9 Room entities
+    │   │   │                        DebtPayment, DebtTransaction, Expense,
+    │   │   │                        SmsLog)
+    │   │   └── entity/            — 11 Room entities
+    │   ├── SmsHelper.kt          — PH phone validation + one-tap SMS intent
     │   └── notifications/
     │       ├── AppForegroundTracker.kt — Suppresses pushes while app is open
     │       ├── DailyCheckWorker.kt     — WorkManager worker, twice daily
+    │       ├── SmsWorker.kt            — Auto SMS reminders via SmsManager
+    │       ├── SmsScheduler.kt         — Schedules/cancels SMS worker
     │       ├── NotificationCenter.kt   — Notification posting + deep links
     │       ├── NotificationChannels.kt — 4 channel definitions
     │       ├── NotificationRules.kt    — Pure rule logic
@@ -764,18 +768,255 @@ WHAT CHANGED (code):
   when tutorial.replayHintKey is set
 - Strings.kt: added tutorialReplayHint i18n key (EN + FIL)
 
-FILES AFFECTED:
-  ui/components/TutorialOverlay.kt
-  ui/navigation/NavGraph.kt
-  ui/localization/Strings.kt
-
-ALL FILES AFFECTED (V2.0n):
-  ui/screens/AppViewModel.kt
+FILES AFFECTED (V2.0n):
   ui/components/TutorialOverlay.kt
   ui/navigation/NavGraph.kt
   ui/localization/Strings.kt
 
 VERIFICATION:
 - ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+
+================================================================================
+V2.0o — BFCACHE LANGUAGE FIX + LANGUAGE CHIP BUTTONS (MOBILE) — IN PROGRESS
+Date: Aug 22, 2026
+Status: IN PROGRESS
+
+NOTE: Mobile app is NOT affected by bfcache stale data. Compose reactive
+state via LocalLanguage CompositionLocal propagates instantly. Language
+chip buttons already match the desired UX (Material3 FilterChips).
+Mobile work below is for parity with web V3.0 changes only.
+
+V2.0o-a — Language change propagation investigation
+─────────────────────────────────────────────────────────────────────────────
+INVESTIGATION FINDING:
+- Mobile app uses LocalLanguage CompositionLocal (mutableStateOf)
+- Changing language in SettingsScreen directly mutates langState.value
+- This triggers automatic recomposition of ALL screens — no navigation
+  or page reload needed
+- No bfcache equivalent exists in Compose Navigation
+- VERDICT: Mobile is NOT affected by the web's bfcache language bug
+
+V2.0o-b — Language change UX (already matches mobile design)
+─────────────────────────────────────────────────────────────────────────────
+INVESTIGATION FINDING:
+- Mobile already uses FilterChip-based language selector (two pill buttons)
+- Web is being upgraded to match this pattern (web V3.0)
+- Mobile needs NO changes for this — already has the better UX
+
+NO CODE CHANGES REQUIRED FOR MOBILE IN THIS VERSION.
+Mobile progress updated for documentation/parity tracking purposes.
+
+================================================================================
+V2.1a — SMS DEBT NOTIFICATIONS: PHASE 1 — PHONE + ONE-TAP SMS (MOBILE) — DONE
+Date: Aug 24, 2026
+Status: IMPLEMENTED + VERIFIED
+
+PROBLEM:
+- Store owners have no way to send debt receipts or reminders to customers
+- Customer debtor records only store a name — no phone number
+- No SMS capability exists in the app
+
+SOLUTION:
+- Added phone number field to the CustomerDebt data model
+- Added SmsHelper utility for PH phone validation + one-tap SMS intent
+- Added Send Receipt / Send Reminder buttons to CustomerDebtDetail screen
+- Added phone input to New Debt form and Checkout (credit) flow
+- Added SMS section to Settings (informational)
+- Full EN/FIL i18n support
+
+DATA MODEL CHANGES:
+- Models.kt: added phoneNumber: String and smsOptIn: Boolean? to CustomerDebt
+- CustomerDebtEntity.kt: added phoneNumber and smsOptIn columns + mapping
+- AppDatabase.kt: Room migration v9→v10 (non-destructive column add)
+- AppRepository.kt: added updateDebtPhoneNumber(), updateDebtSmsOptIn()
+- AppViewModel.kt: added updateDebtPhoneNumber(), updateDebtSmsOptIn(),
+  getStoreName()
+
+NEW FILES:
+- SmsHelper.kt — PH phone validation (09XX, +63), one-tap SMS intent via
+  ACTION_SENDTO, message builders (receipt, reminder, paid confirmation)
+
+UI CHANGES:
+- NewDebtScreen: phone input field (optional, with PH format hint)
+- CheckoutScreen: phone field appears when Credit payment is selected;
+  phone saved to debt record on credit checkout
+- CustomerDebtDetailScreen: phone card (show/edit) + Send Receipt / Send
+  Reminder buttons that open the phone's messaging app with pre-composed text
+- SettingsScreen: SMS Notifications info section
+
+WHAT CHANGED (code):
+- Models.kt: CustomerDebt data class — +phoneNumber, +smsOptIn
+- CustomerDebtEntity.kt: +phoneNumber, +smsOptIn columns, entityToModel()
+- AppDatabase.kt: version 9→10, MIGRATION_9_10, +smsLogDao
+- AppRepository.kt: +updateDebtPhoneNumber(), +updateDebtSmsOptIn()
+- AppViewModel.kt: +updateDebtPhoneNumber(), +updateDebtSmsOptIn(),
+  +getStoreName()
+- SmsHelper.kt (NEW): validatePhoneNumber(), normalizePhoneNumber(),
+  buildReceiptMessage(), buildReminderMessage(), buildPaidMessage(),
+  sendSmsIntent()
+- Strings.kt: 18 EN/FIL SMS i18n keys
+- NewDebtScreen.kt: phone OutlinedTextField + validation
+- CheckoutScreen.kt: phone field (credit mode) + save to debt
+- CustomerDebtDetailScreen.kt: phone card + SMS action buttons
+- SettingsScreen.kt: SMS info section
+
+FILES AFFECTED:
+  data/Models.kt
+  data/SmsHelper.kt (NEW)
+  data/local/entity/CustomerDebtEntity.kt
+  data/local/AppDatabase.kt
+  data/AppRepository.kt
+  ui/screens/AppViewModel.kt
+  ui/screens/NewDebtScreen.kt
+  ui/screens/CheckoutScreen.kt
+  ui/screens/CustomerDebtDetailScreen.kt
+  ui/screens/SettingsScreen.kt
+  ui/localization/Strings.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL
+- ./gradlew assembleDebug — BUILD SUCCESSFUL (APK generated)
+
+================================================================================
+V2.1b — SMS DEBT NOTIFICATIONS: PHASE 2 — AUTOMATED SMS VIA SmsManager (MOBILE)
+Date: Aug 24, 2026
+Status: IMPLEMENTED + VERIFIED
+
+PROBLEM:
+- Phase 1 required the owner to manually tap Send in the messaging app
+- Owners want automatic, scheduled debt reminders without manual effort
+- The app already has WorkManager infrastructure (DailyCheckWorker)
+
+SOLUTION:
+- Added SmsWorker using WorkManager to send SMS reminders automatically
+- Added SmsLogEntity to track every send attempt (success/failure)
+- Added SMS settings: master toggle, frequency (3/7/14 days), quiet hours
+- Added SEND_SMS permission to AndroidManifest.xml
+- SmsWorker respects quiet hours, per-debtor opt-out, and deduplication
+- Wired SmsScheduler into TindaGoApp.kt (schedules on app launch)
+
+NEW FILES:
+- SmsWorker.kt — WorkManager worker that sends SMS reminders automatically
+- SmsLogEntity.kt — Room entity for SMS delivery tracking
+- SmsLogDao.kt — DAO for SMS log queries
+
+DATA MODEL CHANGES:
+- AppDatabase.kt: version 10→11, MIGRATION_10_11, +smsLogDao, +SmsLogEntity
+- AppSettings.kt: +smsEnabled, +smsReminderDays, +smsQuietHoursStart,
+  +smsQuietHoursEnd, +smsSendPaidConfirmation
+
+PERMISSION:
+- AndroidManifest.xml: added SEND_SMS permission
+- SettingsScreen: runtime permission request when user enables SMS toggle
+
+UI CHANGES:
+- SettingsScreen: SMS Notifications section with master toggle, frequency
+  selector (3/7/14 days), quiet hours inputs, paid confirmation toggle
+- Permission request flow on first enable
+
+WHAT CHANGED (code):
+- SmsWorker.kt (NEW): doWork() — checks permission, filters active debts
+  with phone numbers, checks quiet hours, deduplicates via throttle,
+  groups multi-debt per customer into ONE message, sends via
+  SmsManager.sendTextMessage(), logs result to sms_log table
+- SmsLogEntity.kt (NEW): id, debtId, customerName, phoneNumber, message,
+  timestamp, success, errorMessage
+- SmsLogDao.kt (NEW): insert, getByDebtId, getRecent, deleteOlderThan
+- SmsScheduler.kt (NEW): scheduleSmsReminders() / cancelSmsReminders()
+- AppDatabase.kt: version 10→11, MIGRATION_10_11
+- AppRepository.kt: +smsLogDao, +insertSmsLog(), +deleteOldSmsLogs()
+- AppSettings.kt: 5 new SMS preferences
+- TindaGoApp.kt: schedules SmsWorker on app launch via SmsScheduler
+- SettingsScreen.kt: SMS section with working controls + permission request
+- Strings.kt: SMS settings i18n keys (EN + FIL)
+- AndroidManifest.xml: SEND_SMS permission
+
+HOW IT WORKS:
+  App Launch → TindaGoApp.scheduleSmsReminders()
+      ↓ reads settings (enabled? frequency?)
+      ↓ WorkManager schedules periodic SmsWorker
+  SmsWorker fires every N days
+      ↓ checks SEND_SMS permission
+      ↓ filters active debts with phone numbers
+      ↓ checks quiet hours (default 8:00–20:00)
+      ↓ checks last reminder timestamp (avoids duplicates)
+      ↓ groups multiple debts per customer into ONE message
+      ↓ sends via SmsManager (owner's SIM)
+      ↓ logs result to sms_log table
+
+CAVEAT:
+- SmsManager requires SEND_SMS permission → Google Play blocks this for
+  non-default-SMS-handler apps. Works for sideloaded/beta APKs only
+  (fits capstone demo, not Play Store release).
+
+FILES AFFECTED:
+  data/notifications/SmsWorker.kt (NEW)
+  data/notifications/SmsScheduler.kt (NEW)
+  data/local/entity/SmsLogEntity.kt (NEW)
+  data/local/dao/SmsLogDao.kt (NEW)
+  data/local/AppDatabase.kt
+  data/AppRepository.kt
+  ui/localization/AppSettings.kt
+  ui/screens/SettingsScreen.kt
+  ui/localization/Strings.kt
+  TindaGoApp.kt
+  AndroidManifest.xml
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL
+- ./gradlew assembleDebug — BUILD SUCCESSFUL (APK generated)
+
+================================================================================
+V2.1c — HIGH PRIORITY FIXES: NOTIFICATION TIMING + AUTO-RECEIPT (MOBILE) — DONE
+Date: Aug 24, 2026
+Status: IMPLEMENTED + VERIFIED
+
+V2.1c-a — Notification timing ambiguity fix
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- Settings UI showed "Closing reminder hour" alongside toggles for other
+  notification types (store left open, out of stock, restock)
+- Users couldn't tell if 18:00 was a global delivery time or closing-only
+- Quiet hours (6:00–21:00) were hardcoded and invisible in Settings
+
+SOLUTION:
+- Renamed label to "Closing reminder time"
+- Added description: "When the closing reminder fires (overdue, stock &
+  restock alerts arrive separately between 6 AM–9 PM)."
+- Added "Notification timing" info card explaining morning vs closing
+  notification schedules
+
+V2.1c-b — Auto-receipt SMS prompt after credit sale
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- After completing a credit sale in CheckoutScreen, the owner had to
+  manually navigate to CustomerDebtDetail and tap "Send Receipt"
+- This extra step was easy to forget
+
+SOLUTION:
+- After completing a credit sale with a phone number, an AlertDialog
+  pops up: "Send SMS Receipt?"
+- Send button → opens messaging app with pre-composed receipt
+- Skip button → dismisses the dialog
+
+WHAT CHANGED (code):
+- Strings.kt: renamed closingReminderHour → closingReminderTime, added
+  closingReminderDesc, notifTimingTitle, notifTimingDesc, smsReceiptDialogTitle,
+  smsReceiptDialogMsg, smsReceiptSend, smsReceiptSkip (EN + FIL)
+- SettingsScreen.kt: updated closing reminder label, added description,
+  added notification timing info card
+- CheckoutScreen.kt: added showSmsReceiptDialog state, AlertDialog with
+  Send/Skip buttons, SmsHelper.sendSmsIntent() on Send
+
+FILES AFFECTED:
+  ui/localization/Strings.kt
+  ui/screens/SettingsScreen.kt
+  ui/screens/CheckoutScreen.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL
 
 ================================================================================

@@ -8,6 +8,7 @@ import androidx.work.workDataOf
 import com.example.tindago.data.local.AppDatabase
 import com.example.tindago.data.notifications.DailyCheckWorker
 import com.example.tindago.data.notifications.NotificationChannels
+import com.example.tindago.data.notifications.SmsWorker
 import java.util.concurrent.TimeUnit
 
 class TindaGoApp : Application() {
@@ -22,6 +23,8 @@ class TindaGoApp : Application() {
         // V2.70: notification channels (idempotent) + daily check scheduling.
         NotificationChannels.createAll(this)
         scheduleNotificationChecks()
+        // SMS automated reminders scheduling
+        scheduleSmsReminders()
     }
 
     /** Schedule the two periodic workers (inexact timing only — battery-friendly,
@@ -44,5 +47,13 @@ class TindaGoApp : Application() {
         workManager.enqueueUniquePeriodicWork(
             DailyCheckWorker.WORK_CLOSING, ExistingPeriodicWorkPolicy.KEEP, closing
         )
+    }
+
+    /** Schedule automated SMS debt reminders based on settings. */
+    private fun scheduleSmsReminders() {
+        val prefs = getSharedPreferences("tindago_prefs", MODE_PRIVATE)
+        val smsEnabled = prefs.getBoolean("sms_enabled", false)
+        val reminderDays = prefs.getInt("sms_reminder_days", 7)
+        SmsWorker.schedule(this, smsEnabled, reminderDays)
     }
 }

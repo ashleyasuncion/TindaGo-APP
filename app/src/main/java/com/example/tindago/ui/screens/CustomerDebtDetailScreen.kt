@@ -44,6 +44,7 @@ fun CustomerDebtDetailScreen(
     onRecordPayment: (Int) -> Unit = {},
     onTutorialClick: (() -> Unit)? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val langState = LocalLanguage.current
     val lang = langState.value
     val highlightState = LocalTutorialHighlightState.current
@@ -61,6 +62,10 @@ fun CustomerDebtDetailScreen(
     // Credit-limit edit state (web v2.56 parity)
     var editingCreditLimit by remember { mutableStateOf(false) }
     var creditLimitInput by remember { mutableStateOf("") }
+
+    // Phone number edit state (SMS feature)
+    var editingPhone by remember { mutableStateOf(false) }
+    var phoneInput by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -194,6 +199,172 @@ fun CustomerDebtDetailScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = Gray500
                         )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Phone Number Card (SMS feature) ────────────────────────
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Surface),
+                shape = MaterialTheme.shapes.medium,
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "smsPhoneNumber".t(lang),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Gray400
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            if (debt.phoneNumber.isNotBlank()) {
+                                Text(
+                                    debt.phoneNumber,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Green600
+                                )
+                            } else {
+                                Text(
+                                    "smsPhonePlaceholder".t(lang),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Gray400
+                                )
+                            }
+                        }
+                        TextButton(onClick = {
+                            editingPhone = !editingPhone
+                            phoneInput = debt.phoneNumber
+                        }) {
+                            Text(
+                                if (editingPhone) "creditLimitCancel".t(lang)
+                                else "creditLimitEdit".t(lang),
+                                color = Green700
+                            )
+                        }
+                    }
+                    if (editingPhone) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = phoneInput,
+                            onValueChange = { phoneInput = it },
+                            label = { Text("smsPhoneNumber".t(lang)) },
+                            placeholder = { Text("smsPhonePlaceholder".t(lang)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "smsPhoneHint".t(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Gray400
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                val normalized = if (phoneInput.isNotBlank()) {
+                                    com.example.tindago.data.SmsHelper.normalizePhoneNumber(phoneInput)
+                                } else null
+                                if (phoneInput.isNotBlank() && normalized == null) {
+                                    snackbarScope.launch { snackbarHost.showSnackbar("smsPhoneInvalid".t(lang)) }
+                                    return@Button
+                                }
+                                viewModel.updateDebtPhoneNumber(debt.id, normalized ?: "")
+                                editingPhone = false
+                                snackbarScope.launch {
+                                    snackbarHost.showSnackbar("smsPhoneSaved".t(lang))
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Text("creditLimitSave".t(lang), fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // SMS Actions — Send Receipt / Send Reminder
+                    if (debt.phoneNumber.isNotBlank() && !isSettled) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = Gray100)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "smsSectionTitle".t(lang),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Gray400
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Send Receipt button
+                            OutlinedButton(
+                                onClick = {
+                                    val storeName = viewModel.getStoreName()
+                                    val msg = com.example.tindago.data.SmsHelper.buildReceiptMessage(
+                                        customerName = debt.customerName,
+                                        amount = debt.amount,
+                                        storeName = storeName,
+                                        totalBalance = debt.remainingBalance,
+                                        lang = lang
+                                    )
+                                    com.example.tindago.data.SmsHelper.sendSmsIntent(
+                                        context,
+                                        debt.phoneNumber,
+                                        msg
+                                    )
+                                    snackbarScope.launch { snackbarHost.showSnackbar("smsSent".t(lang)) }
+                                },
+                                modifier = Modifier.weight(1f).height(44.dp),
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("smsSendReceipt".t(lang), style = MaterialTheme.typography.bodySmall)
+                            }
+                            // Send Reminder button
+                            OutlinedButton(
+                                onClick = {
+                                    val storeName = viewModel.getStoreName()
+                                    val daysSinceCreation = ((System.currentTimeMillis() - debt.createdAt) / (1000L * 60 * 60 * 24)).toInt()
+                                    val totalPaid = debt.amount - debt.remainingBalance
+                                    val limit = viewModel.getEffectiveCreditLimit(debt.customerName)
+                                    val remainingCredit = (limit - debt.remainingBalance).coerceAtLeast(0.0)
+                                    val msg = com.example.tindago.data.SmsHelper.buildReminderMessage(
+                                        customerName = debt.customerName,
+                                        storeName = storeName,
+                                        totalBalance = debt.remainingBalance,
+                                        daysOpen = daysSinceCreation,
+                                        totalPaid = totalPaid,
+                                        effectiveCreditLimit = limit,
+                                        remainingCredit = remainingCredit,
+                                        lang = lang
+                                    )
+                                    com.example.tindago.data.SmsHelper.sendSmsIntent(
+                                        context,
+                                        debt.phoneNumber,
+                                        msg
+                                    )
+                                    snackbarScope.launch { snackbarHost.showSnackbar("smsSent".t(lang)) }
+                                },
+                                modifier = Modifier.weight(1f).height(44.dp),
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("smsSendReminder".t(lang), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
                     }
                 }
             }

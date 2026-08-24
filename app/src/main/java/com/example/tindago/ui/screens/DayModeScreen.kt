@@ -88,7 +88,7 @@ fun DayModeScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(16.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         // ── Header ──
         Spacer(modifier = Modifier.height(16.dp))
@@ -109,7 +109,7 @@ fun DayModeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // ── Stats grid ──
         // Fixed-height Row (150dp) gives every card equal height.
@@ -120,7 +120,7 @@ fun DayModeScreen(
                 .fillMaxWidth()
                 .height(150.dp)
                 .tutorialHighlight("dayStatsGrid", highlightState),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             DayStatCard(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -145,7 +145,7 @@ fun DayModeScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // ── Collapsible Transaction Feed ──
         Card(
@@ -162,7 +162,7 @@ fun DayModeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { transactionsExpanded = !transactionsExpanded }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -186,7 +186,7 @@ fun DayModeScreen(
                     enter = expandVertically(expandFrom = Alignment.Top),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top)
                 ) {
-                    Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                    Column(modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 14.dp)) {
                         if (todaySales.isEmpty()) {
                             Text(
                                 "noTransactions".t(lang),
@@ -199,12 +199,12 @@ fun DayModeScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
+                                        .padding(vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Surface(
-                                        modifier = Modifier.size(36.dp),
-                                        shape = RoundedCornerShape(18.dp),
+                                        modifier = Modifier.size(40.dp),
+                                        shape = RoundedCornerShape(20.dp),
                                         color = if (sale.customerName != null) Amber100 else Green100
                                     ) {
                                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -214,7 +214,7 @@ fun DayModeScreen(
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Spacer(modifier = Modifier.width(14.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             sale.description,
@@ -249,7 +249,7 @@ fun DayModeScreen(
                                     )
                                 }
                                 if (todaySales.last() != sale) {
-                                    HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 2.dp))
+                                    HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 4.dp))
                                 }
                             }
                         }
@@ -258,14 +258,14 @@ fun DayModeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         // ── Store Expenses entry point (web V2.71 parity) ──
         OutlinedButton(
             onClick = onNavigateToExpenses,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(56.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = Green600)
         ) {
@@ -285,16 +285,19 @@ fun DayModeScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // ── Close Store button ──
-        OutlinedButton(
+        Button(
             onClick = onCloseStore,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(56.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Amber700)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Amber700,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
         ) {
             Text(
                 "\uD83C\uDF19 ${"closeStore".t(lang)}",
@@ -303,7 +306,7 @@ fun DayModeScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
     }
     }
 }
@@ -329,19 +332,19 @@ private fun DayStatCard(
             contentAlignment = Alignment.Center
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Surface(
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = iconBg
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Text(icon, fontSize = 18.sp)
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     label,
                     style = MaterialTheme.typography.labelMedium,

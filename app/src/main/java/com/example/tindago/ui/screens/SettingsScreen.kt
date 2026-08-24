@@ -9,8 +9,13 @@ import android.provider.Settings
 import android.text.format.DateFormat as AndroidDateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -72,6 +77,13 @@ fun SettingsScreen(
     var defaultMarkupText by remember { mutableStateOf(settings.defaultMarkup.toString()) }
     var lowStockThresholdText by remember { mutableStateOf(settings.lowStockThreshold.toString()) }
     var defaultCreditLimitText by remember { mutableStateOf(settings.defaultCreditLimit.toString()) }
+
+    // Collapsible section states
+    var displayExpanded by remember { mutableStateOf(false) }
+    var inventoryExpanded by remember { mutableStateOf(false) }
+    var notificationsExpanded by remember { mutableStateOf(false) }
+    var supportExpanded by remember { mutableStateOf(false) }
+    var dataExpanded by remember { mutableStateOf(false) }
 
     // Snackbar for save feedback
     val snackbarHostState = remember { SnackbarHostState() }
@@ -153,7 +165,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
                 .verticalScroll(settingsScrollState)
         ) {
             // ═══════════════════════════════════════════════════════
@@ -170,7 +182,7 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsStoreName", highlightState)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
                 value = ownerName,
                 onValueChange = {
@@ -181,7 +193,7 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsOwnerName", highlightState)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.tutorialHighlight("settingsLanguage", highlightState)) {
                 FilterChip(
                     selected = language == "en",
@@ -206,33 +218,42 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // ═══════════════════════════════════════════════════════
             // ── Display ──
             // ═══════════════════════════════════════════════════════
-            SettingsSectionTitle("settingsSectionDisplay".t(settings.language))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.tutorialHighlight("settingsTextSize", highlightState)) {
-                listOf("standard" to "standard".t(settings.language), "large" to "large".t(settings.language), "extra-large" to "extraLarge".t(settings.language)).forEach { (value, label) ->
-                    FilterChip(
-                        selected = selectedSize == value,
-                        onClick = {
-                            selectedSize = value
-                            settings.textSize = value
-                            scaleState.value = settings.getTextScaleFactor()
-                            scope.launch { snackbarHostState.showSnackbar("settingsSaved".t(settings.language)) }
-                        },
-                        label = { Text(label, style = MaterialTheme.typography.bodySmall) }
-                    )
+            CollapsibleSection(
+                title = "settingsSectionDisplay".t(settings.language),
+                expanded = displayExpanded,
+                onToggle = { displayExpanded = !displayExpanded }
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.tutorialHighlight("settingsTextSize", highlightState)) {
+                    listOf("standard" to "standard".t(settings.language), "large" to "large".t(settings.language), "extra-large" to "extraLarge".t(settings.language)).forEach { (value, label) ->
+                        FilterChip(
+                            selected = selectedSize == value,
+                            onClick = {
+                                selectedSize = value
+                                settings.textSize = value
+                                scaleState.value = settings.getTextScaleFactor()
+                                scope.launch { snackbarHostState.showSnackbar("settingsSaved".t(settings.language)) }
+                            },
+                            label = { Text(label, style = MaterialTheme.typography.bodySmall) }
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ═══════════════════════════════════════════════════════
             // ── Inventory Defaults ──
             // ═══════════════════════════════════════════════════════
-            SettingsSectionTitle("settingsSectionDefaults".t(settings.language))
+            CollapsibleSection(
+                title = "settingsSectionDefaults".t(settings.language),
+                expanded = inventoryExpanded,
+                onToggle = { inventoryExpanded = !inventoryExpanded }
+            ) {
             OutlinedTextField(
                 value = defaultMarkupText,
                 onValueChange = {
@@ -252,7 +273,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = Gray400
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
                 value = lowStockThresholdText,
                 onValueChange = {
@@ -272,7 +293,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = Gray400
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
                 value = defaultCreditLimitText,
                 onValueChange = {
@@ -291,16 +312,21 @@ fun SettingsScreen(
             )
             Text(
                 "defaultCreditLimitHint".t(settings.language),
-                style = MaterialTheme.typography.bodySmall,
-                color = Gray400
+                style = MaterialTheme.typography.bodySmall,                color = Gray400
             )
+            } // end CollapsibleSection
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
 
             // ═══════════════════════════════════════════════════════
             // ── Notifications ──
             // ═══════════════════════════════════════════════════════
-            SettingsSectionTitle("notificationsSection".t(settings.language))
+            CollapsibleSection(
+                title = "notificationsSection".t(settings.language),
+                expanded = notificationsExpanded,
+                onToggle = { notificationsExpanded = !notificationsExpanded }
+            ) {
             val contextForNotif = context
             var notifEnabled by remember { mutableStateOf(settings.notificationsEnabled) }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -488,14 +514,19 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("openSystemSettings".t(settings.language)) }
                 }
-            }
+            } // end if (notifEnabled)
+            } // end CollapsibleSection (Notifications)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ═══════════════════════════════════════════════════════
             // ── Support ──
             // ═══════════════════════════════════════════════════════
-            SettingsSectionTitle("settingsSectionSupport".t(settings.language))
+            CollapsibleSection(
+                title = "settingsSectionSupport".t(settings.language),
+                expanded = supportExpanded,
+                onToggle = { supportExpanded = !supportExpanded }
+            ) {
             // Tutorial selector
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -581,13 +612,18 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("reportsTitle".t(settings.language))
             }
+            } // end CollapsibleSection (Support)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ═══════════════════════════════════════════════════════
             // ── SMS Notifications ──
             // ═══════════════════════════════════════════════════════
-            SettingsSectionTitle("smsSectionTitle".t(settings.language))
+            CollapsibleSection(
+                title = "smsSectionTitle".t(settings.language),
+                expanded = dataExpanded,
+                onToggle = { dataExpanded = !dataExpanded }
+            ) {
             Text(
                 "smsSectionDesc".t(settings.language),
                 style = MaterialTheme.typography.bodySmall,
@@ -749,14 +785,19 @@ fun SettingsScreen(
                         }
                     )
                 }
-            }
+            } // end if (smsEnabled)
+            } // end CollapsibleSection (SMS)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ═══════════════════════════════════════════════════════
             // ── Data ──
             // ═══════════════════════════════════════════════════════
-            SettingsSectionTitle("settingsSectionData".t(settings.language))
+            CollapsibleSection(
+                title = "settingsSectionData".t(settings.language),
+                expanded = dataExpanded,
+                onToggle = { dataExpanded = !dataExpanded }
+            ) {
             OutlinedButton(
                 onClick = {
                     if (viewModel != null) {
@@ -786,8 +827,57 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Red600)
             ) { Text("resetDataBtn".t(settings.language), color = MaterialTheme.colorScheme.onPrimary) }
+            } // end CollapsibleSection (Data)
+        } // Column
+    } // CompositionLocalProvider
+    } // Scaffold padding
+} // SettingsScreen
+
+@Composable
+private fun CollapsibleSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Gray700,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = Gray400,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(expandFrom = Alignment.Top),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top)
+            ) {
+                Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                    content()
+                }
+            }
         }
-    }
     }
 }
 

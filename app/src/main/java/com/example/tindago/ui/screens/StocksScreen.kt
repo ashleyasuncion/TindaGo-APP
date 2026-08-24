@@ -90,10 +90,10 @@ fun StocksScreen(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp)
             .tutorialHighlight("inventoryList", highlightState),
 
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // ── Search bar ──────────────────────────────────────────────────
         item {
@@ -156,8 +156,8 @@ fun StocksScreen(
                 // Collapsed — horizontal scroll, first 6 chips + More ▾ button
                 val visibleKeys = allKeys.take(6)
                 androidx.compose.foundation.lazy.LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 6.dp)
                 ) {
                     items(visibleKeys.size) { index ->
                         val key = visibleKeys[index]
@@ -199,7 +199,7 @@ fun StocksScreen(
                 onClick = onAddStock,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(56.dp)
                     .tutorialHighlight("addStockBtn", highlightState),
                 shape = MaterialTheme.shapes.medium
             ) {
@@ -214,7 +214,7 @@ fun StocksScreen(
             item {
                 OutlinedButton(
                     onClick = onStartRestockDay,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color(0xFFF59E0B) // accent/amber
@@ -308,20 +308,20 @@ private fun InventoryProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Status icon
             Surface(
-                modifier = Modifier.size(36.dp),
-                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = bgColor
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Text(statusIcon, fontSize = 18.sp)
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             // Info
             Column(modifier = Modifier.weight(1f)) {
@@ -352,8 +352,8 @@ private fun InventoryProductCard(
             }
 
             Spacer(modifier = Modifier.width(4.dp))
-            IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "Details", tint = Gray400, modifier = Modifier.size(20.dp))
+            IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "Details", tint = Gray400, modifier = Modifier.size(22.dp))
             }
         }
     }

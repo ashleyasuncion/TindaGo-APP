@@ -1020,3 +1020,104 @@ VERIFICATION:
 - ./gradlew testDebugUnitTest — BUILD SUCCESSFUL
 
 ================================================================================
+DUIOLINGO-INSPIRED UI IMPROVEMENTS — PHASES 1-2 (MOBILE APP)
+================================================================================
+Date: Aug 24, 2026
+Scope: Mobile app only (git/app/TindaGo_APP/)
+Reference: Duolingo UI/UX principles investigation
+================================================================================
+
+PHASE 1 — QUICK WINS (COMPLETED)
+--------------------------------------------------------------------------------
+1. WHITESPACE INCREASED GLOBALLY
+   - DayModeScreen: padding 16dp → 20dp horizontal, gaps 8dp → 12dp
+   - DayModeScreen: button heights 52dp → 56dp
+   - DayModeScreen: transaction row padding 4dp → 6dp
+   - DayModeScreen: stat card icons 36dp → 40dp
+   - StocksScreen: list padding 16dp → 20dp, gaps 6dp → 10dp
+   - StocksScreen: product card padding 12dp → 14dp, icons 36dp → 40dp
+   - StocksScreen: chevron buttons 32dp → 44dp
+   - SettingsScreen: padding 16dp → 20dp, input spacing 8dp → 12-16dp
+   Files: DayModeScreen.kt, StocksScreen.kt, SettingsScreen.kt
+
+2. LABELS SHORTENED
+   - "Applied to new products" → "For new products"
+   - "Applied to new customers. Set 0 for no limit." → "For new customers. 0 = no limit."
+   - "Alert when stock falls below this number" → "Alert when stock is low"
+   - "Selling price of items sold minus their cost." → "Revenue minus cost of goods sold."
+   - "Net Profit = profit from items sold - store expenses." → "Profit after store expenses."
+   - Notification descriptions (4 strings) shortened to ~50 chars each
+   - "Optional — helps identify and sort your products" → "Optional — helps sort your products"
+   Files: Strings.kt
+
+3. TAP TARGETS ENLARGED
+   - All buttons: 52dp → 56dp height
+   - Product card icons: 36dp → 40dp
+   - Stats card icons: 36dp → 40dp
+   - Chevron arrows: 32dp → 44dp tap target
+   - Transaction icons: 36dp → 40dp
+   Files: DayModeScreen.kt, StocksScreen.kt
+
+4. PRIMARY ACTION PLACEMENT
+   - Already well-structured (FAB for primary actions)
+   - No changes needed
+
+PHASE 2 — SCREEN SIMPLIFICATION (COMPLETED)
+--------------------------------------------------------------------------------
+1. DAY SCREEN — CLOSE STORE BUTTON
+   - Changed from OutlinedButton (hollow) to Button (filled amber)
+   - Makes primary action visually obvious
+   Files: DayModeScreen.kt
+
+2. SETTINGS SCREEN — COLLAPSIBLE SECTIONS
+   - Added CollapsibleSection composable (expand/collapse with animation)
+   - All sections collapsed by default:
+     * Store Profile — always visible (no collapse)
+     * Display — collapsed
+     * Inventory Defaults — collapsed
+     * Notifications — collapsed
+     * Support — collapsed
+     * SMS Notifications — collapsed
+     * Data — collapsed
+   - Each section has expand/collapse arrow icon
+   - AnimatedVisibility for smooth expand/collapse transitions
+   Files: SettingsScreen.kt
+
+3. FILIPINO TRANSLATIONS SHORTENED
+   - Notification descriptions (Filipino) shortened to match English
+   - "productDetailsHint" shortened
+   - "defaultMarkupHint" shortened
+   Files: Strings.kt
+
+FILES AFFECTED:
+  ui/screens/DayModeScreen.kt
+  ui/screens/StocksScreen.kt
+  ui/screens/SettingsScreen.kt
+  ui/localization/Strings.kt
+
+VERIFICATION:
+- ./gradlew assembleDebug — BUILD SUCCESSFUL
+- All 194 opening braces match 194 closing braces
+- No compilation errors
+- Only deprecation warnings (Icons.Filled.Help, menuAnchor, Locale constructor)
+
+PHASE 3 — TUTORIAL UPDATES (COMPLETED)
+--------------------------------------------------------------------------------
+Updated tutorial strings to reflect collapsible settings sections.
+
+1. tutorial14 (EN + FIL)
+   - Added: "Tap section headers to expand settings."
+
+2. settingsTutorial1 (EN + FIL)
+   - Added: "Tap section headers to expand and collapse settings groups."
+
+3. settingsTutorial5 (EN + FIL)
+   - Changed: "Tap 'Inventory Defaults' to expand, then set the stock alert threshold..."
+
+FILES AFFECTED: ui/localization/Strings.kt
+
+VERIFICATION:
+- ./gradlew assembleDebug — BUILD SUCCESSFUL
+- No other tutorials affected (day, closing, morning, eod, reports, checkout, etc.)
+
+================================================================================

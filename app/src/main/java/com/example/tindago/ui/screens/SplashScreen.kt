@@ -1,6 +1,7 @@
 package com.example.tindago.ui.screens
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -10,9 +11,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.tindago.R
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.t
 import com.example.tindago.ui.theme.Green600
@@ -41,7 +44,11 @@ fun SplashScreen(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("🏪", fontSize = 64.sp)
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_logo),
+                contentDescription = "TindaGo Logo",
+                modifier = Modifier.size(100.dp)
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 "TindaGo",

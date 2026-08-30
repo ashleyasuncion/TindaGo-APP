@@ -1121,3 +1121,43 @@ VERIFICATION:
 - No other tutorials affected (day, closing, morning, eod, reports, checkout, etc.)
 
 ================================================================================
+V2.1d — SPLASH SCREEN LOGO (MOBILE) — DONE
+Date: Aug 29, 2026
+Status: IMPLEMENTED
+
+PROBLEM:
+- Splash screen used a plain 🏪 emoji as the app icon
+- No custom logo asset existed for the Android app
+- Web app received a custom TindaGo logo (V3.5) — mobile needed parity
+
+SOLUTION:
+- Created ic_launcher_logo.png (19.8 KB) in res/drawable/
+- Updated SplashScreen.kt to use Image(painterResource) instead of Text emoji
+- Logo displayed at 100×100dp with the existing green background + subtitle
+
+WHAT CHANGED (code):
+- NEW: res/drawable/ic_launcher_logo.png — custom logo asset (19.8 KB)
+- SplashScreen.kt: replaced Text("\uD83C\uDFEA", fontSize = 64.sp) with
+  Image(painter = painterResource(id = R.drawable.ic_launcher_logo),
+  modifier = Modifier.size(100.dp))
+
+FILES AFFECTED:
+  res/drawable/ic_launcher_logo.png (NEW)
+  ui/screens/SplashScreen.kt
+
+VERIFICATION:
+- ./gradlew assembleDebug — BUILD SUCCESSFUL
+- Logo renders correctly on splash screen
+- Matches web app V3.5 logo branding
+
+================================================================================
+PENDING — SUPPORT EMAIL UPDATE
+─────────────────────────────────────────────────────────────────────────────
+- support@tindago.com is a placeholder — domain not yet registered
+- Must be changed to a real email before shipping
+- File affected: ui/localization/Strings.kt (EN + FIL contactContent)
+- Also update in web app: app.js, help.html, download.html
+- Old email (pre-rebrand): support@sarisarismart.com
+- Current placeholder: support@tindago.com
+
+================================================================================

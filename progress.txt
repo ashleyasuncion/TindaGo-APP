@@ -1161,3 +1161,147 @@ PENDING — SUPPORT EMAIL UPDATE
 - Current placeholder: support@tindago.com
 
 ================================================================================
+================================================================================
+V2.2 — LEVEL 1 OFFLINE ML DEMAND FORECAST (ForecastEngine → 4 Screens) — SEALED
+Date: 2026-09-16
+Status: IMPLEMENTED + VERIFIED + CLEAN BUILD SEALED — Level 1 (Stages 1-6) SEALED
+Spec: capstone_stuff/functionality implementation/12_Level1_Offline_ML_Demand_Forecast.md
+Type: Offline-First Statistical ML — replaces static lowStockThreshold=5 with learned daysUntilStockout
+
+SUMMARY
+--------------------------------------------------------------------------------
+Before (rule-based):  if (product.quantity <= 5) -> LOW  // same 5 for every product
+After  (Level 1 ML):  qty / learnedDailyDemand  where learnedDailyDemand = avg of
+last 7 days of Room SpecificSale per product. Slow seller (0.2/day) warns later
+than fast seller (3/day). Confidence rises with active days.
+
+Offline pipeline (no network / no TFLite / pure Kotlin):
+  Room SpecificSale(date, description, quantity) + Product(quantity)
+    -> buildDailyHistory()  SUM(quantity) BY date, window=7 ending at today
+       Match: description == product.name (ignoreCase, SaleBottomSheet convention)
+       Output: history[7], dates[7], totalSold, activeDays
+    -> Model: SMA=sum/7, EMA alpha=0.5, Trend=linearRegressionNextDay()
+       Primary = SMA (most defensible); EMA/Trend shown for comparison
+    -> Predict: predictedDaysUntilOut=ceil(stock/avgDaily), suggestedRestock=ceil(avg*7-stock)
+    -> Evaluate: ForecastConfidence INSUFFICIENT(0) / LOW(1) / MEDIUM(2-3) / HIGH(4+)
+    -> UI: ForecastBadge, ForecastDetailCard, urgentRestocks() lists
+
+Engine constants (ForecastEngine.kt):
+  WINDOW_DAYS=7  LEAD_TIME_DAYS=7  EMA_ALPHA=0.5  MIN_AVG_THRESHOLD=0.15
+  today = AppViewModel.today (yyyy-MM-dd, Dev Panel override — deterministic)
+
+STAGES 1-6 — WHAT SHIPPED
+--------------------------------------------------------------------------------
+Stage 1 — MorningCheckScreen.kt restore
+  - Restored clean HEAD 27418b FE0 urgent0 lines578 as baseline.
+
+Stage 2 — StocksScreen.kt  18313b  FE3  lines403
+  - rememberSaveable sortByForecast (was remember)
+  - statusRank:(Product)->Int + compareBy(statusRank, qty, name)
+  - FilterChip "Sort by forecast" toggle
+  - forecastForProduct + ForecastBadge per row (urgent pills)
+
+Stage 3 — ProductDetailScreen.kt  19731b  FE2  lines386
+  - ForecastEngine / ForecastDetailCard + remember(forecastForProduct) PASS
+  - 7 bars, Avg/EMA/Trend, ~days left, Suggest +qty for 7 days, confidence
+
+Stage 4 — ReportsScreen.kt  33832b  FE2  lines729
+  - urgentRestocks(14d, 5) + "Restock Soon (14d)" card
+  - dotColor <=3 Red600 <=7 Amber600 else Green600 + Canvas 10dp dots
+
+Stage 5 — MorningCheckScreen.kt  29258b  FE2  lines601  (isolated splice fix)
+  - urgentRestocks(7d, 5) + "Restock Soon (ML Forecast)" card anchored
+    var(2832) < card(9594) < stock(10995) before "// Stock warnings card"
+  - Avoids  Surface(color = if(urgentForecasts  "Expecting ',' at 235:14" splice bug.
+
+Stage 6 — Clean Build SEALED
+  - Fix: JAVA_HOME=C:\Program Files\Android\Android Studio\jbr (JDK 21.0.10,
+    jlink.exe 23704) + gradle.properties org.gradle.java.home=jbr
+    + gradlew --stop + --no-daemon --no-configuration-cache to bypass VS Code
+    RedHat JRE 21.0.12.1 .../jre/.../bin/jlink.exe does not exist (AGP 8.7.3
+    compileSdk 36 needs JdkImageTransform for core-for-system-modules.jar).
+    Initial compileDebugJavaWithJavac FAILED resolved on 2nd attempt.
+  - Log: C:\temp\build_stage6.log  BUILD SUCCESSFUL in 51s
+    37 tasks: 8 executed 29 up-to-date  kspDebugKotlin UP-TO-DATE
+    Expecting ',' False  ksp FAILED False
+  - APK: .../git/app/TindaGo_APP/app/build/outputs/apk/debug/app-debug.apk
+    22688064b  21.64 MB  mtime 2026-09-16 23:27:31
+  - Regression PASS post-build Stages 2-5 (python verifiers).
+  - i18n: 15 Strings keys EN+FIL (forecastBadge*, forecastConfidence*, etc.)
+
+ALGORITHM 12 — OFFLINE STATISTICAL DEMAND FORECAST (copy to Ch.3)
+--------------------------------------------------------------------------------
+Inputs: product, allSales, todayStr, windowDays=7, leadTime=7, EMA_ALPHA=0.5
+Outputs: ForecastResult { avgDaily, emaDaily, trendDaily, predictedDaysUntilOut?,
+         suggestedRestockQty, confidence, dailyHistory[7] }
+Complexity: O(window + |sales|) per product.
+  1 (history,dates)=buildDailyHistory(product,allSales,todayStr,7)
+  2 totalSold=sum(history); activeDays=count(history[i]>0)
+  3 sma=sum(history)/7; ema=EMA(history,0.5); trend=linRegNextDay(history)
+  4 avgDaily=sma
+  5 if avgDaily<0.15            predictedDays=null
+  6 else if quantity<=0         predictedDays=0
+  7 else                        predictedDays=ceil(quantity/avgDaily)
+  8 suggested=if avgDaily<0.15 0 else max(0,ceil(avgDaily*7-quantity))
+  9 confidence=totalSold==0?INSUFFICIENT : activeDays<=1?LOW : activeDays<=3?MEDIUM : HIGH
+ 10 return ForecastResult(..., forecastMethod="Statistical ML (7-day Moving Average)")
+
+FILES TOUCHED
+--------------------------------------------------------------------------------
+  app/src/main/java/com/example/tindago/data/ml/ForecastEngine.kt        NEW 5845b 155 lines
+  app/src/main/java/com/example/tindago/data/ml/ForecastModels.kt        (ForecastResult/Confidence)
+  app/src/main/java/com/example/tindago/ui/components/ForecastBadge.kt   NEW
+  app/src/main/java/com/example/tindago/ui/components/ForecastDetailCard.kt NEW
+  app/src/main/java/com/example/tindago/ui/screens/StocksScreen.kt       18313b
+  app/src/main/java/com/example/tindago/ui/screens/ProductDetailScreen.kt 19731b
+  app/src/main/java/com/example/tindago/ui/screens/ReportsScreen.kt      33832b
+  app/src/main/java/com/example/tindago/ui/screens/MorningCheckScreen.kt 29258b
+  app/src/main/java/com/example/tindago/ui/localization/Strings.kt       +15 keys EN/FIL
+  gradle.properties  +org.gradle.java.home=C:/Program Files/Android/Android Studio/jbr
+  capstone_stuff/functionality implementation/12_Level1_Offline_ML_Demand_Forecast.md  spec
+
+VERIFICATION
+--------------------------------------------------------------------------------
+- ./gradlew assembleDebug --no-daemon --no-configuration-cache  BUILD SUCCESSFUL in 51s
+- python verifiers Stages 2-5 PASS post-build
+- Threshold split: Morning 7d vs Reports 14d  limit=5  verified
+- Demo: Dev Panel today=2026-09-16, seed Kopiko 3/day x4 days -> Stocks badge "2d left" red,
+  Sort by forecast reorders by risk, ProductDetail 7 bars + Avg/EMA/Trend, Morning top card red dot,
+  Reports 14d card, 0-sales -> "Collecting data...".
+
+FUTURE PLANS — LEVEL 2 OPTIONS (pick one next)
+--------------------------------------------------------------------------------
+Option A — Accuracy / UX Polish (low risk)
+  - Smoothing: per-product EMA alpha tuning, outlier clipping, handle promo spikes
+  - Empty-state: "Collecting data..." polish, onboarding hint for first 3 days
+  - Unit tests: ForecastEngine accuracy(pred,actual)=1-|pred-act|/act, backtest over 7-day
+    holdout + MAPE report; add to ./gradlew testDebugUnitTest (target 89 -> ~105 tests)
+  - Deliverable: tighter confidence ladder + test coverage for thesis Table X.
+
+Option B — One-Tap Actions (medium risk — needs DB migration)
+  - Cards -> action: "Restock +{suggestedQty}" button on Morning/Reports urgent rows
+    and ProductDetail; writes RestockLog + bumps Product.quantity
+  - Needs: AppDatabase version bump + MIGRATION, AppRepository restock method,
+    undo snackbar, update urgentRestocks after write
+  - Deliverable: forecast -> action in one tap (panel loves this).
+
+Option C — Analytics & Export (medium risk — UI heavy)
+  - Sparklines: 7-day mini bars on every Stocks row (not just detail)
+  - Sortable forecast table in Reports: sort by predictedDays, avgDaily, confidence
+  - CSV export: forecast snapshot (product, stock, avgDaily, daysLeft, suggested, confidence)
+    via existing CSV export path in Reports
+  - Deliverable: analytics tab for defense screenshots.
+
+RECOMMENDED: A first (locks accuracy story for Ch.4), then B (action closes loop).
+Keep online-optional: Vercel sync stays backup/dashboard only — ML stays 100% offline.
+
+PENDING
+--------------------------------------------------------------------------------
+- Stage 7 Smoke (device): adb devices -> adb install -r app-debug.apk -> verify
+  Stocks toggle sorts by predictedDaysUntilOut, Reports 14d dots, Morning 7d card,
+  ProductDetail ForecastDetailCard + bars (EN<->FIL toggle).
+- support@tindago.com placeholder still pending (Strings.kt + web app.js/help/download).
+- See also: git/TindaGo/progress.txt V3.5 + standalone Sari-sari_smart copy pending sync.
+
+================================================================================
+

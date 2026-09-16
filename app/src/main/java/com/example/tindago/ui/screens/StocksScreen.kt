@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Search
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.tindago.data.Product
 import com.example.tindago.data.StockStatus
+import com.example.tindago.data.ml.ForecastBadge
+import com.example.tindago.data.ml.ForecastEngine
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.t
 import androidx.compose.ui.tooling.preview.Preview
@@ -58,9 +61,11 @@ fun StocksScreen(
     // Category filter ('' = all). Products without a category only match 'all'
     // (web v2.59 renderManageInventory parity).
     var selectedCategory by remember { mutableStateOf("") }
+    var sortByForecast by rememberSaveable { mutableStateOf(false) }
     var catExpanded by remember { mutableStateOf(false) }
 
-    val filteredProducts = remember(products, searchQuery, selectedCategory) {
+    val specificSales by viewModel.specificSales.collectAsState()
+    val filteredProducts = remember(products, searchQuery, selectedCategory, specificSales, viewModel.today, sortByForecast) {
         val searched = if (searchQuery.isNotBlank()) {
             viewModel.searchProducts(searchQuery)
         } else {
@@ -72,7 +77,16 @@ fun StocksScreen(
         } else {
             searched
         }
-        byCategory.sortedBy { it.name }
+        val statusRank: (Product) -> Int = { when (it.status) { StockStatus.OUT_OF_STOCK -> 0; StockStatus.LOW -> 1; StockStatus.PLENTY -> 2 } }
+        val baseSorted = byCategory.sortedWith(
+            compareBy(statusRank, { it.quantity }, { it.name.lowercase() })
+        )
+        if (!sortByForecast) baseSorted else {
+            val today = viewModel.today
+            baseSorted.map { p -> p to (ForecastEngine.forecastForProduct(p, specificSales, today).predictedDaysUntilOut ?: 999) }
+                .sortedBy { it.second }
+                .map { it.first }
+        }
     }
 
     val listState = rememberLazyListState()
@@ -238,12 +252,22 @@ fun StocksScreen(
             }
         }
 
+        item {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("\uD83D\uDD2E " + "forecastDetailTitle".t(lang), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Gray700)
+                FilterChip(selected = sortByForecast, onClick = { sortByForecast = !sortByForecast }, label = { Text(if (sortByForecast) "\u2713 Forecast" else "Sort by forecast") })
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         items(filteredProducts, key = { it.id }) { product ->
+            val forecast = remember(product.id, specificSales, viewModel.today) { ForecastEngine.forecastForProduct(product, specificSales, viewModel.today) }
             InventoryProductCard(
                 product = product,
                 fmt = fmt,
                 lang = lang,
-                onClick = { onProductClick(product.id) }
+                onClick = { onProductClick(product.id) },
+                forecast = forecast
             )
         }
 
@@ -289,6 +313,7 @@ private fun InventoryProductCard(
     fmt: java.text.NumberFormat,
     lang: String,
     onClick: () -> Unit,
+    forecast: com.example.tindago.data.ml.ForecastResult? = null,
 ) {
     val bgColor = when (product.status) {
         StockStatus.PLENTY -> Green100
@@ -349,6 +374,10 @@ private fun InventoryProductCard(
                     color = Gray500,
                     modifier = Modifier.padding(top = 2.dp)
                 )
+                if (forecast != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ForecastBadge(result = forecast, lang = lang, compact = true)
+                }
             }
 
             Spacer(modifier = Modifier.width(4.dp))

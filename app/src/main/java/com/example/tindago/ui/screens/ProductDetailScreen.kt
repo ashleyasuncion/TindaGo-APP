@@ -16,6 +16,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.tindago.data.Product
 import com.example.tindago.data.StockStatus
+import com.example.tindago.data.ml.ForecastDetailCard
+import com.example.tindago.data.ml.ForecastEngine
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
 import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
@@ -239,6 +241,15 @@ fun ProductDetailScreen(
                 }
             }
 
+            // ── Forecast (Level 1 Offline ML) ──
+            val specificSales by viewModel.specificSales.collectAsState()
+            val forecast = remember(product?.id, specificSales, viewModel.today) {
+                product?.let { ForecastEngine.forecastForProduct(it, specificSales, viewModel.today) }
+            }
+            if (forecast != null) {
+                ForecastDetailCard(result = forecast, lang = lang, onRestock = { onRestock(product!!.id) })
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             // ── Deduct stock ─────────────────────────────────────────────

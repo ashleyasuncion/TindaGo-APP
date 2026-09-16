@@ -240,7 +240,7 @@ object Strings {
         "trackingDebtsContent" to "When completing a sale with Debt payment, the debt is recorded automatically. You can also manually add debts from the Utang screen. Tap 'Record Payment' on a customer's card to log payments.",
         "viewingReports" to "Viewing Reports",
         "viewingReportsContent" to "Your daily summary is shown on the Home screen. You can see your earnings, stock alerts, outstanding debts, and business tips all in one place.",
-        "aboutContent" to "TindaGo v2.0 - A daily business companion for sari-sari store owners. Track your stock, sales, and utang in one simple app.",
+        "aboutContent" to "TindaGo v2.1 - A daily business companion for sari-sari store owners. Track your stock, sales, and utang in one simple app.",
         "contactContent" to "For questions or feedback: support@tindago.com",
 
         // Settings
@@ -443,6 +443,11 @@ object Strings {
         "notifDigestOutstanding" to "Outstanding: {amount}",
         "notifDigestOverLimit" to "Over-limit debtors: {n}",
         "notifDigestAging" to "60+ day debts: {n}",
+        // Backup (V3.0)
+        "notifChannelBackup" to "Backup",
+        "notifChannelBackupDesc" to "Automatic backup status.",
+        "notifBackupFailedTitle" to "Backup failed",
+        "notifBackupFailedText" to "Automatic backup failed. Tap to check settings.",
 
         // ── Closing Screen ──
         "closingTitle" to "Close the Store",
@@ -815,6 +820,24 @@ object Strings {
         "restockStartBtn" to "Start Restock Day",
         "restockNoHistory" to "No restock history yet.",
         "restockLogCount" to "{n} restock(s) on record",
+        // -- Forecast (Level 1 Offline ML) --
+        "forecastDetailTitle" to "Demand Forecast 🔮",
+        "forecastMethod" to "Statistical ML (7-day Moving Average)",
+        "forecastHistory" to "Last 7 Days",
+        "forecastAvgSales" to "Avg Sales",
+        "forecastDaysLeft" to "{n} days left",
+        "forecastDaysLeftShort" to "{n}d left",
+        "forecastOutOfStock" to "Out of stock",
+        "forecastOutToday" to "Out today",
+        "forecastNoDemand" to "No demand",
+        "forecastInsufficientData" to "Collecting data...",
+        "forecastInsufficientHint" to "Not enough history -- record 2+ days",
+        "forecastConfidenceHigh" to "High",
+        "forecastConfidenceMedium" to "Medium",
+        "forecastConfidenceLow" to "Low",
+        "forecastHowItWorks" to "Avg from 7 days → daysUntilOut = stock ÷ avg.",
+        "forecastSuggestedRestock" to "Suggest +{n}",
+        "forecastFor7Days" to "for 7 days",
     )
 
     val fil: Map<String, String> = mapOf(
@@ -1056,7 +1079,7 @@ object Strings {
         "trackingDebtsContent" to "Kapag nagbenta gamit ang Utang, awtomatikong naitala ang utang. Maaari ka ring magdagdag ng utang mula sa Utang screen. I-tap ang 'Magtala ng Bayad' para mag-log ng mga payment.",
         "viewingReports" to "Pagtingin ng Ulat",
         "viewingReportsContent" to "Ang iyong daily summary ay makikita sa Home screen. Kita, stock alert, utang, at tips sa negosyo — lahat sa isang lugar.",
-        "aboutContent" to "TindaGo v2.0 - Isang araw-araw na kasama sa negosyo para sa mga may-ari ng sari-sari store. I-track ang iyong stock, benta, at utang sa isang simpleng app.",
+        "aboutContent" to "TindaGo v2.1 - Isang araw-araw na kasama sa negosyo para sa mga may-ari ng sari-sari store. I-track ang iyong stock, benta, at utang sa isang simpleng app.",
         "contactContent" to "Para sa mga tanong o feedback: support@tindago.com",
 
         // Settings
@@ -1259,6 +1282,11 @@ object Strings {
         "notifDigestOutstanding" to "Natitira: {amount}",
         "notifDigestOverLimit" to "May lampas sa limit: {n}",
         "notifDigestAging" to "Utang na 60+ araw: {n}",
+        // Backup (V3.0)
+        "notifChannelBackup" to "Backup",
+        "notifChannelBackupDesc" to "Katayuan ng awtomatikong backup.",
+        "notifBackupFailedTitle" to "Nabigo ang backup",
+        "notifBackupFailedText" to "Nabigo ang awtomatikong backup. I-tap para sa settings.",
 
         // ── Closing Screen ──
         "closingTitle" to "Isara ang Tindahan",

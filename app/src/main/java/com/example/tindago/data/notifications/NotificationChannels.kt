@@ -18,6 +18,7 @@ object NotificationChannels {
     const val STOCK = "stock_alerts"
     const val CLOSING = "closing_reminder"
     const val DIGEST = "weekly_digest"
+    const val BACKUP = "backup"
 
     /** Create all channels — safe to call on every app start (idempotent). */
     fun createAll(context: Context) {
@@ -41,7 +42,11 @@ object NotificationChannels {
             NotificationChannel(
                 DIGEST, "notifChannelDigest".t(lang),
                 NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = "notifChannelDigestDesc".t(lang) }
+            ).apply { description = "notifChannelDigestDesc".t(lang) },
+            NotificationChannel(
+                BACKUP, "notifChannelBackup".t(lang),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply { description = "notifChannelBackupDesc".t(lang) }
         )
         manager.createNotificationChannels(channels)
     }

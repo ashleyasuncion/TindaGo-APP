@@ -13,7 +13,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.foundation.Canvas
 import com.example.tindago.data.StockStatus
+import com.example.tindago.data.ml.ForecastEngine
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
 import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
@@ -26,7 +28,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * MORNING CHECK — First of three daily moments.
+ * MORNING CHECK â€” First of three daily moments.
  * Matches morning.html from the web prototype exactly.
  */
 @Composable
@@ -47,14 +49,14 @@ fun MorningCheckScreen(
     val lang = langState.value
     val scrollState = rememberScrollState()
 
-    // Stale open days are NO LONGER auto-archived here (web v2.35 parity) — they
+    // Stale open days are NO LONGER auto-archived here (web v2.35 parity) â€” they
     // are surfaced via the amber overdue banner below so the owner decides.
 
     val products by viewModel.products.collectAsState()
     val debts by viewModel.debts.collectAsState()
     val eodData by viewModel.endOfDayData.collectAsState()
     val specificSales by viewModel.specificSales.collectAsState()
-    // Observable current date — forces this screen to recompose when the real day
+    // Observable current date â€” forces this screen to recompose when the real day
     // advances (midnight ticker / app resume), so the overdue banner and other
     // today-dependent values recompute in real time instead of freezing.
     val currentDate by viewModel.currentDate.collectAsState()
@@ -62,6 +64,7 @@ fun MorningCheckScreen(
 
     val outOfStockItems = products.filter { it.status == StockStatus.OUT_OF_STOCK }
     val lowStockItems = products.filter { it.status == StockStatus.LOW }
+    val urgentForecasts = remember(products, specificSales, viewModel.today) { ForecastEngine.urgentRestocks(products, specificSales, viewModel.today, thresholdDays = 7, limit = 5) }
     val totalDebt = debts.sumOf { it.remainingBalance }
     val activeDebtors = debts.count { it.remainingBalance > 0 }
 
@@ -75,7 +78,7 @@ fun MorningCheckScreen(
     val isDayClosedToday = eodData?.date == viewModel.today && eodData?.finished == true && !viewModel.dayArchived
     val hasSalesToday = specificSales.any { it.date == viewModel.today }
 
-    // ── Overdue store state (store left open across business days — web v2.35) ──
+    // â”€â”€ Overdue store state (store left open across business days â€” web v2.35) â”€â”€
     // Re-evaluated on every recomposition; `currentDate` above guarantees the screen
     // recomposes when the date changes, so this flips to true in real time.
     val isStaleOpen = viewModel.isStaleOpenDay()
@@ -91,7 +94,7 @@ fun MorningCheckScreen(
     var showReviewDialog by remember { mutableStateOf(false) }
     var showDevConfirmDialog by remember { mutableStateOf(false) }
 
-    /** Proceed to close the stale day — with a warning dialog if a dev date
+    /** Proceed to close the stale day â€” with a warning dialog if a dev date
      *  override is active (archiving writes to REAL persisted history). */
     fun requestCloseStaleDay() {
         showReviewDialog = false
@@ -113,7 +116,7 @@ fun MorningCheckScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ── Morning greeting (matching webapp: morning-icon, morning-greeting, morning-subtitle) ──
+        // â”€â”€ Morning greeting (matching webapp: morning-icon, morning-greeting, morning-subtitle) â”€â”€
         Spacer(modifier = Modifier.height(16.dp))
         // SVG-style sun icon (matching morning.html morning-icon)
         Box(
@@ -136,9 +139,9 @@ fun MorningCheckScreen(
             modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
         )
 
-        // ── Morning cards (matching webapp: overdue banner + stock warning, debt, yesterday) ──
+        // â”€â”€ Morning cards (matching webapp: overdue banner + stock warning, debt, yesterday) â”€â”€
 
-        // Overdue store banner (store left open across business days — web v2.35)
+        // Overdue store banner (store left open across business days â€” web v2.35)
         if (isStaleOpen) {
             Card(
                 modifier = Modifier
@@ -192,6 +195,26 @@ fun MorningCheckScreen(
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        if (urgentForecasts.isNotEmpty()) {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("🔮 Restock Soon (ML Forecast)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Gray800)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    urgentForecasts.forEach { (product, result) ->
+                        val days = result.predictedDaysUntilOut ?: 99
+                        val dotColor = when { days <= 3 -> Red600; days <= 7 -> Amber600; else -> Green600 }
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Canvas(modifier = Modifier.size(10.dp)) { drawCircle(color = dotColor) }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(product.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = Gray800)
+                            Text("${days}d", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = dotColor)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         // Stock warnings card (matches morning.html warning-bg card)
@@ -425,10 +448,10 @@ fun MorningCheckScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ── Context-aware button (matching web app renderMorningCheck()):
-        //     Day open → "Close Store" → navigate to closing
-        //     Day closed today, not archived → "Edit Today's Closing" → reopen
-        //     Default → "Start the Day" → startDay
+        // â”€â”€ Context-aware button (matching web app renderMorningCheck()):
+        //     Day open â†’ "Close Store" â†’ navigate to closing
+        //     Day closed today, not archived â†’ "Edit Today's Closing" â†’ reopen
+        //     Default â†’ "Start the Day" â†’ startDay
         val buttonLabel = when {
             isStaleOpen -> "overdueCloseStart".t(lang)
             isDayOpen -> "\ud83c\udf19 " + "closeStoreBtn".t(lang)
@@ -464,7 +487,7 @@ fun MorningCheckScreen(
     }
     }
 
-    // ── Overdue review dialog: previous day's sales + total (web overdueReviewOverlay) ──
+    // â”€â”€ Overdue review dialog: previous day's sales + total (web overdueReviewOverlay) â”€â”€
     if (showReviewDialog) {
         AlertDialog(
             onDismissRequest = { showReviewDialog = false },
@@ -536,7 +559,7 @@ fun MorningCheckScreen(
         )
     }
 
-    // ── Dev-override confirm: archiving writes to REAL persisted history (web overdueDevConfirm) ──
+    // â”€â”€ Dev-override confirm: archiving writes to REAL persisted history (web overdueDevConfirm) â”€â”€
     if (showDevConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showDevConfirmDialog = false },

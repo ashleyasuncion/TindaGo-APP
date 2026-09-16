@@ -145,6 +145,47 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean("sms_paid_confirm", true)
         set(value) = prefs.edit().putBoolean("sms_paid_confirm", value).apply()
 
+    // ── Automatic backup (V3.0 — Automatic Backup feature) ──
+    /** Master automatic-backup switch. Defaults on (weekly). */
+    var backupEnabled: Boolean
+        get() = prefs.getBoolean("backup_enabled", true)
+        set(value) = prefs.edit().putBoolean("backup_enabled", value).apply()
+
+    /** Automatic backup interval in hours. 0 = off. Defaults to 168 (weekly). */
+    var backupIntervalHours: Int
+        get() = prefs.getInt("backup_interval_hours", 168)
+        set(value) = prefs.edit().putInt("backup_interval_hours", value.coerceAtLeast(0)).apply()
+
+    /** Persisted SAF tree URI for a custom backup location. "" = default app folder. */
+    var backupLocationUri: String
+        get() = prefs.getString("backup_location_uri", "") ?: ""
+        set(value) = prefs.edit().putString("backup_location_uri", value).apply()
+
+    /** Number of automatic backups kept before older ones are pruned. */
+    var backupRetentionCount: Int
+        get() = prefs.getInt("backup_retention_count", 5)
+        set(value) = prefs.edit().putInt("backup_retention_count", value.coerceIn(1, 30)).apply()
+
+    /** Timestamp (ms) of the last backup attempt. 0 = never. */
+    var lastBackupAt: Long
+        get() = prefs.getLong("last_backup_at", 0L)
+        set(value) = prefs.edit().putLong("last_backup_at", value).apply()
+
+    /** "success" | "failed" | "" (never run). */
+    var lastBackupStatus: String
+        get() = prefs.getString("last_backup_status", "") ?: ""
+        set(value) = prefs.edit().putString("last_backup_status", value).apply()
+
+    /** File name of the last successful backup. */
+    var lastBackupFile: String
+        get() = prefs.getString("last_backup_file", "") ?: ""
+        set(value) = prefs.edit().putString("last_backup_file", value).apply()
+
+    /** Short error tag when the last backup failed. */
+    var lastBackupError: String
+        get() = prefs.getString("last_backup_error", "") ?: ""
+        set(value) = prefs.edit().putString("last_backup_error", value).apply()
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }

@@ -24,6 +24,8 @@ object NotificationDeepLinks {
     const val INVENTORY = "tindago://inventory"    // stock / restock
     const val CLOSING = "tindago://closing"        // closing reminder
     const val DEBTS = "tindago://debts"            // weekly digest
+    const val SETTINGS = "tindago://settings"      // backup failure -> settings
+    const val BACKUP = "tindago://backup"          // alias for backup deep link
 }
 
 /**
@@ -36,6 +38,7 @@ object NotificationCenter {
     const val ID_STOCK = 2002
     const val ID_CLOSING = 2003
     const val ID_DIGEST = 2004
+    const val ID_BACKUP = 2005
 
     /** True when the app may actually post on this device (permission granted
      *  on 13+, always true below). Channels may still be individually disabled

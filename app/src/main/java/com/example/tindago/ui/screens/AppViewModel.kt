@@ -6,6 +6,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tindago.data.*
+import com.example.tindago.data.backup.BackupManager
+import com.example.tindago.data.backup.BackupResult
+import com.example.tindago.data.backup.BackupSerializer
 import com.example.tindago.ui.localization.AppSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -1726,6 +1729,145 @@ class AppViewModel : ViewModel() {
             }
             _debtTransactions.value = newTxs
         }
+    }
+
+    // ── Automatic backup integration (V3.0) ──────────────────────────────
+
+    /** Build the canonical versioned backup envelope from persisted Room data.
+     *  Used by automatic backups, "Back Up Now", and the Settings export.
+     *  Falls back to the in-memory snapshot before the repository loads. */
+    suspend fun buildBackupJson(): JSONObject {
+        val repo = repository
+        val settings = appSettings
+        return if (repo != null && settings != null) {
+            BackupManager.buildFromRepository(repo, settings)
+        } else {
+            getRawStateJson()
+        }
+    }
+
+    /** Run a manual backup to the configured location (V3.0). */
+    suspend fun backupNow(
+        context: android.content.Context,
+        manual: Boolean = true
+    ): BackupResult {
+        val repo = repository ?: return BackupResult(false, error = "not_ready")
+        val settings = appSettings ?: return BackupResult(false, error = "not_ready")
+        return BackupManager.createBackup(context.applicationContext, repo, settings, manual)
+    }
+
+    /**
+     * Restore a backup file (V3.0): takes a pre-restore safety snapshot, clears
+     * the Room tables, then applies the parsed data + settings. Executes on the
+     * ViewModel scope and reports success/failure through [onResult].
+     */
+    fun restoreBackup(
+        context: android.content.Context,
+        json: JSONObject,
+        onResult: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val parsed = BackupSerializer.parse(json)
+                val repo = repository
+                val settings = appSettings
+                if (repo != null && settings != null) {
+                    // Best-effort safety snapshot before we overwrite anything.
+                    BackupManager.createBackup(
+                        context.applicationContext, repo, settings,
+                        manual = true, preRestore = true
+                    )
+                    repo.deleteAll()
+                    applyBackupData(parsed.data, replaceAll = true)
+                    persistAllToRepo(repo)
+                    parsed.data.restockLogs.forEach { repo.saveRestockLog(it) }
+                } else {
+                    applyBackupData(parsed.data, replaceAll = true)
+                }
+                onResult(true)
+            } catch (e: Exception) {
+                onResult(false)
+            }
+        }
+    }
+
+    /**
+     * Apply a parsed backup to the in-memory state, counters and settings.
+     * [replaceAll] = true reproduces the backup exactly (empty sections clear
+     * data); false keeps existing data for empty sections (legacy import).
+     */
+    private fun applyBackupData(
+        data: BackupSerializer.BackupData,
+        replaceAll: Boolean
+    ) {
+        if (replaceAll || data.products.isNotEmpty()) {
+            _products.value = data.products
+            _productIdCounter = maxOf(_productIdCounter, data.products.maxOfOrNull { it.id } ?: 0)
+        }
+        if (replaceAll) _dailyEntry.value = data.dailyEntry
+        else data.dailyEntry?.let { _dailyEntry.value = it }
+
+        if (replaceAll || data.specificSales.isNotEmpty()) {
+            _specificSales.value = data.specificSales
+            _saleIdCounter = maxOf(_saleIdCounter, data.specificSales.maxOfOrNull { it.id } ?: 0)
+        }
+        if (replaceAll || data.debts.isNotEmpty()) {
+            _debts.value = data.debts
+            _debtIdCounter = maxOf(_debtIdCounter, data.debts.maxOfOrNull { it.id } ?: 0)
+        }
+        if (replaceAll || data.payments.isNotEmpty()) {
+            _payments.value = data.payments
+            _paymentIdCounter = maxOf(_paymentIdCounter, data.payments.maxOfOrNull { it.id } ?: 0)
+        }
+        if (replaceAll || data.debtTransactions.isNotEmpty()) {
+            _debtTransactions.value = data.debtTransactions
+            _debtTxIdCounter = maxOf(_debtTxIdCounter, data.debtTransactions.maxOfOrNull { it.id } ?: 0)
+        }
+        if (replaceAll || data.expenses.isNotEmpty()) {
+            _expenses.value = data.expenses
+            _expenseIdCounter = maxOf(_expenseIdCounter, data.expenses.maxOfOrNull { it.id } ?: 0)
+        }
+        if (replaceAll || data.restockLogs.isNotEmpty()) {
+            _restockLog.value = data.restockLogs
+            _lastRestockDate.value = data.restockLogs.maxByOrNull { it.date }?.date
+        }
+        if (replaceAll) _endOfDayData.value = data.endOfDay
+        else data.endOfDay?.let { _endOfDayData.value = it }
+
+        applyBackupSettings(data.settings)
+        backfillDebtLedger()
+    }
+
+    /** Apply the allowlisted settings snapshot and re-persist day state. */
+    private fun applyBackupSettings(b: BackupSerializer.BackupSettings) {
+        appSettings?.let { BackupSerializer.applySettings(it, b) }
+        dayOpen = b.dayOpen
+        dayDate = b.dayDate
+        dayArchived = b.dayArchived
+        _reportPeriod.value = b.reportPeriod
+        persistDayState()
+    }
+
+    /** Web loadState parity: give every debt an initial ledger row when missing. */
+    private fun backfillDebtLedger() {
+        val ledgerIds = _debtTransactions.value.map { it.debtId }.toSet()
+        val missing = _debts.value.filter { it.id !in ledgerIds }
+        if (missing.isEmpty()) return
+        val newTxs = _debtTransactions.value.toMutableList()
+        missing.forEach { debt ->
+            _debtTxIdCounter++
+            newTxs.add(
+                DebtTransaction(
+                    id = _debtTxIdCounter,
+                    debtId = debt.id,
+                    type = "debt",
+                    description = null,
+                    amount = debt.amount,
+                    timestamp = debt.createdAt
+                )
+            )
+        }
+        _debtTransactions.value = newTxs
     }
 
     fun generateTestSale() {

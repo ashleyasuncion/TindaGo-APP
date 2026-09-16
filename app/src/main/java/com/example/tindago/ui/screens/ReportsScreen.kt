@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.tindago.data.StockStatus
+import com.example.tindago.data.ml.ForecastEngine
 import com.example.tindago.data.formatTimeAgo
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.TutorialIconButton
@@ -78,6 +79,7 @@ fun ReportsScreen(
         .entries.sortedByDescending { it.value }.take(5)
 
     // Low stock items
+    val urgentForecasts = remember(products, specificSales, viewModel.today) { ForecastEngine.urgentRestocks(products, specificSales, viewModel.today, thresholdDays = 14, limit = 5) }
     val lowItems = products.filter { it.status != StockStatus.PLENTY }
 
     // Weekly chart data (last 7 days) — anchored to the (possibly overridden) app date
@@ -539,6 +541,26 @@ fun ReportsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // -- Forecast urgent (14d) --
+            if (urgentForecasts.isNotEmpty()) {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("\uD83D\uDD2E Restock Soon (14d Forecast)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Gray800)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        urgentForecasts.forEach { (product, result) ->
+                            val days = result.predictedDaysUntilOut ?: 99
+                            val dotColor = when { days <= 3 -> Red600; days <= 7 -> Amber600; else -> Green600 }
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Canvas(modifier = Modifier.size(10.dp)) { drawCircle(color = dotColor) }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(product.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = Gray800)
+                                Text("${days}d", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = dotColor)
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             // Low stock items
             var showLowStock by remember { mutableStateOf(true) }
             Card(

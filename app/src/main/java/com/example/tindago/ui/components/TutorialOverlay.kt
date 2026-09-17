@@ -53,6 +53,10 @@ data class PageTutorial(
 )
 
 val pageTutorials = listOf(
+    PageTutorial("backup", "tutBackup", "backupTutorial", 3, "settings",
+        highlights = listOf(null, "backupToggle", null),
+        replayHintKey = "tutorialReplayHint"),
+
     PageTutorial("main", "tutMain", "tutorial", 14, "morning"),
     PageTutorial("home", "tutHome", "homeTutorial", 10, "morning",
         highlights = listOf(null, null, "morningStockCard", "morningDebtCard", null, null, null, null, null, null),

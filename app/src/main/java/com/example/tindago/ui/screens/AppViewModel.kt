@@ -52,6 +52,13 @@ class AppViewModel : ViewModel() {
     private val _endOfDayData = MutableStateFlow<EndOfDayData?>(null)
     val endOfDayData: StateFlow<EndOfDayData?> = _endOfDayData.asStateFlow()
 
+    private val _backupEnabled = MutableStateFlow(false)
+    val backupEnabled: StateFlow<Boolean> = _backupEnabled.asStateFlow()
+    private val _backupIntervalHours = MutableStateFlow(168)
+    val backupIntervalHours: StateFlow<Int> = _backupIntervalHours.asStateFlow()
+    private val _backupLocationUri = MutableStateFlow("")
+    val backupLocationUri: StateFlow<String> = _backupLocationUri.asStateFlow()
+
     private val _reportPeriod = MutableStateFlow("day")
     val reportPeriod: StateFlow<String> = _reportPeriod.asStateFlow()
 
@@ -275,6 +282,10 @@ class AppViewModel : ViewModel() {
      */
     fun initAppSettings(settings: AppSettings) {
         appSettings = settings
+        _backupEnabled.value = settings.backupEnabled
+        _backupIntervalHours.value = settings.backupIntervalHours
+        _backupLocationUri.value = settings.backupLocationUri
+
         dayOpen = settings.dayOpen
         dayDate = settings.dayDate
         dayArchived = settings.dayArchived
@@ -1747,6 +1758,16 @@ class AppViewModel : ViewModel() {
     }
 
     /** Run a manual backup to the configured location (V3.0). */
+    fun updateBackupSettings(enabled: Boolean, intervalHours: Int, locationUri: String) {
+        _backupEnabled.value = enabled
+        appSettings?.backupEnabled = enabled
+        _backupIntervalHours.value = intervalHours
+        appSettings?.backupIntervalHours = intervalHours
+        _backupLocationUri.value = locationUri
+        appSettings?.backupLocationUri = locationUri
+    }
+
+
     suspend fun backupNow(
         context: android.content.Context,
         manual: Boolean = true

@@ -41,6 +41,26 @@ object Strings {
         "catMosquito" to "Mosquito Coils",
         "catCigarettes" to "Cigarettes",
         "catOther" to "Other",
+
+        // ── Automatic Backup (V3.0) ──
+        "backup_section_title" to "Automatic Backup",
+        "backup_enabled_label" to "Enable Auto-Backup",
+        "backup_frequency_label" to "Backup Frequency",
+        "backup_frequency_daily" to "Daily",
+        "backup_frequency_weekly" to "Weekly",
+        "select_backup_folder" to "Select Backup Folder",
+        "backup_folder_hint" to "Backups will be saved to this folder.",
+        "backup_now" to "Backup Now",
+        "backup_last_run" to "Last backup: {date}",
+
+        "backup_success" to "Backup success!",
+        "backup_failed" to "Backup failed: {error}",
+
+        "backup_location_label" to "Backup Location",
+        "choose_location" to "Choose Location",
+        "reset" to "Reset to Default",
+        "backup_location_inaccessible" to "Warning: Backup location inaccessible.",
+
         "unitPiece" to "piece",
         "unitSachet" to "sachet",
         "unitPack" to "pack",
@@ -717,6 +737,15 @@ object Strings {
         // Add Product Tutorial
         "addProductTutorial1" to "This page lets you add a new product or restock an existing one.",
         "addProductTutorial2" to "Enter the item name — suggestions will appear if the product already exists in your inventory.",
+        // Backup Tutorial
+        "tutBackup" to "Automatic Backup",
+        "backupTutorial1" to "Your store data is valuable. Enable automatic backups to prevent data loss if your device is lost or the app is reinstalled.",
+        "backupTutorial2" to "You can toggle automatic backups on/off and choose between daily or weekly frequency. We recommend keeping it enabled.",
+        "backupTutorial3" to "By default, backups are saved in a secure app folder, but you can choose a custom folder on your device or SD card for extra peace of mind.",
+        "backup_setup_needed" to "Data Safety Setup",
+        "complete_setup" to "Complete Setup",
+
+
         "addProductTutorial3" to "Set the cost per unit, markup percentage, and selling price. The markup helper automatically suggests the right selling price.",
         "addProductTutorial4" to "Enter the quantity being added. This will be added to your existing stock.",
         "addProductTutorial5" to "Tap \"Save\" to add the product to your inventory. You can edit it later from the Stocks page.",
@@ -1226,6 +1255,18 @@ object Strings {
         "expSupplies" to "Mga Gamit",
         "expMaintenance" to "Pagkukumpuni",
         "expOther" to "Iba pa",
+
+        // ── Automatic Backup (V3.0) ──
+        "backup_section_title" to "Awtomatikong Backup",
+        "backup_enabled_label" to "I-on ang Auto-Backup",
+        "backup_frequency_label" to "Dalas ng Backup",
+        "backup_frequency_daily" to "Araw-araw",
+        "backup_frequency_weekly" to "Linggu-linggo",
+        "select_backup_folder" to "Pumili ng Folder para sa Backup",
+        "backup_folder_hint" to "Dito ise-save ang mga backup file.",
+        "backup_now" to "I-backup Ngayon",
+        "backup_last_run" to "Huling backup: {date}",
+
         // Expense Log tutorial
         "tutExpenses" to "Tutorial ng Mga Gastos",
         "expensesTutorial1" to "Ang pahina ng Mga Gastos ay nagtatala ng perang ginastos sa tindahan mismo — upa, kuryente, pamasahe, sahod, at iba pang gastusin.",

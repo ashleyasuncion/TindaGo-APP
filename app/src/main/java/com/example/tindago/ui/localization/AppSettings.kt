@@ -36,6 +36,11 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean("has_completed_tutorial", false)
         set(value) = prefs.edit().putBoolean("has_completed_tutorial", value).apply()
 
+    var isBackupSetupComplete: Boolean
+        get() = prefs.getBoolean("is_backup_setup_complete", false)
+        set(value) = prefs.edit().putBoolean("is_backup_setup_complete", value).apply()
+
+
     /** Launch counter for tutorial — auto-starts on every launch, no skip on first-ever launch */
     var launchCount: Int
         get() = prefs.getInt("launch_count", 0)

@@ -5,10 +5,12 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.example.tindago.data.backup.BackupScheduler
 import com.example.tindago.data.local.AppDatabase
 import com.example.tindago.data.notifications.DailyCheckWorker
 import com.example.tindago.data.notifications.NotificationChannels
 import com.example.tindago.data.notifications.SmsWorker
+import com.example.tindago.ui.localization.AppSettings
 import java.util.concurrent.TimeUnit
 
 class TindaGoApp : Application() {
@@ -25,6 +27,8 @@ class TindaGoApp : Application() {
         scheduleNotificationChecks()
         // SMS automated reminders scheduling
         scheduleSmsReminders()
+        // V3.0: automatic backup — periodic WorkManager + OEM catch-up.
+        scheduleAutomaticBackups()
     }
 
     /** Schedule the two periodic workers (inexact timing only — battery-friendly,
@@ -55,5 +59,17 @@ class TindaGoApp : Application() {
         val smsEnabled = prefs.getBoolean("sms_enabled", false)
         val reminderDays = prefs.getInt("sms_reminder_days", 7)
         SmsWorker.schedule(this, smsEnabled, reminderDays)
+    }
+
+    /** V3.0: Schedule periodic automatic backups and opportunistic catch-up for OEM delays. */
+    private fun scheduleAutomaticBackups() {
+        val settings = AppSettings(this)
+        BackupScheduler.schedule(this, settings)
+        BackupScheduler.maybeRunIfDue(this, settings)
+    }
+
+    /** Called when backup settings change (e.g. from SettingsScreen toggle) to re-apply schedule. */
+    fun onBackupSettingsChanged() {
+        scheduleAutomaticBackups()
     }
 }

@@ -37,6 +37,8 @@ import com.example.tindago.data.notifications.DailyCheckWorker
 import com.example.tindago.data.notifications.NotificationCenter
 import com.example.tindago.data.notifications.NotificationChannels
 import com.example.tindago.data.notifications.NotificationDeepLinks
+import com.example.tindago.data.backup.BackupManager
+
 import com.example.tindago.ui.localization.AppSettings
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.LocalTextScale
@@ -787,6 +789,152 @@ fun SettingsScreen(
                 }
             } // end if (smsEnabled)
             } // end CollapsibleSection (SMS)
+            // ── Automatic Backup ──
+            var backupExpanded by remember { mutableStateOf(false) }
+            CollapsibleSection(
+                title = "backup_section_title".t(settings.language),
+                expanded = backupExpanded,
+                onToggle = { backupExpanded = !backupExpanded }
+            ) {
+                // Toggle enabled
+            if (!settings.isBackupSetupComplete) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "backup_setup_needed".t(settings.language),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                onLaunchTutorial("backup")
+                                settings.isBackupSetupComplete = true
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("complete_setup".t(settings.language))
+                        }
+                    }
+                }
+            }
+
+                var backupEnabled by remember { mutableStateOf(settings.backupEnabled) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("backup_enabled_label".t(settings.language), style = MaterialTheme.typography.bodyMedium)
+                    Switch(
+                        checked = backupEnabled,
+                        onCheckedChange = {
+                            backupEnabled = it
+                            settings.backupEnabled = it
+                            if (viewModel != null) viewModel.updateBackupSettings(it, settings.backupIntervalHours, settings.backupLocationUri)
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Frequency (Daily / Weekly)
+                // AppSettings uses backupIntervalHours: 24 for Daily, 168 for Weekly
+                var isDaily by remember { mutableStateOf(settings.backupIntervalHours <= 24) }
+                Text("backup_frequency_label".t(settings.language), style = MaterialTheme.typography.labelMedium)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = isDaily,
+                        onClick = {
+                            isDaily = true
+                            settings.backupIntervalHours = 24
+                            if (viewModel != null) viewModel.updateBackupSettings(settings.backupEnabled, 24, settings.backupLocationUri)
+                        },
+                        label = { Text("backup_frequency_daily".t(settings.language)) }
+                    )
+                    FilterChip(
+                        selected = !isDaily,
+                        onClick = {
+                            isDaily = false
+                            settings.backupIntervalHours = 168
+                            if (viewModel != null) viewModel.updateBackupSettings(settings.backupEnabled, 168, settings.backupLocationUri)
+                        },
+                        label = { Text("backup_frequency_weekly".t(settings.language)) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Backup Now button
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val result = viewModel?.backupNow(context, true)
+                            val message = if (result?.success == true) {
+                                "backup_success".t(settings.language)
+                            } else {
+                                "backup_failed".t(settings.language).replace("{error}", result?.error ?: "Unknown")
+                            }
+                            snackbarHostState.showSnackbar(message)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("backup_now".t(settings.language))
+                }
+            } // end CollapsibleSection (Backup)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Backup Location (SAF)
+                val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+                    if (uri != null) {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        )
+                        settings.backupLocationUri = uri.toString()
+                    }
+                }
+
+                Text("backup_location_label".t(settings.language), style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = BackupManager.locationLabel(context, settings),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                        color = if (!BackupManager.isTreeAccessible(context, settings.backupLocationUri ?: "")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    )
+                    Button(onClick = { launcher.launch(null) }) {
+                        Text("choose_location".t(settings.language))
+                    }
+                    if (settings.backupLocationUri?.isNotEmpty() == true) {
+                        TextButton(onClick = { settings.backupLocationUri = "" }) {
+                            Text("reset".t(settings.language))
+                        }
+                    }
+                }
+                
+                // Show warning if custom location is set but inaccessible
+                if (settings.backupLocationUri?.isNotEmpty() == true && !BackupManager.isTreeAccessible(context, settings.backupLocationUri ?: "")) {
+                    Text(
+                        text = "backup_location_inaccessible".t(settings.language),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+
 
             Spacer(modifier = Modifier.height(16.dp))
 

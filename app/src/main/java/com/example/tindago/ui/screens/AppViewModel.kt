@@ -1984,6 +1984,81 @@ class AppViewModel : ViewModel() {
         return count
     }
 
+    /**
+     * Generates one month (30 days) of realistic test data spread across the calendar.
+     */
+    fun generateMonthOfTestData(): String {
+        val rand = java.util.Random()
+        val now = System.currentTimeMillis()
+        val dayMs = 24L * 60 * 60 * 1000
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val names = listOf("Aling Nena", "Mang Kanor", "Teresa", "Bong", "Liza", "Rolly", "Elena", "Pedro")
+        val categories = ExpenseCatalog.CATEGORIES
+
+        val prods = _products.value
+        if (prods.isEmpty()) seedSampleData()
+        val pList = _products.value
+        if (pList.isEmpty()) return "No products available"
+
+        var sCount = 0; var dCount = 0; var pPay = 0; var eCount = 0
+
+        for (day in 0..29) {
+            val dayStart = now - (day * dayMs)
+            val dayStartMs = fmt.parse(fmt.format(Date(dayStart)))?.time ?: dayStart
+
+            // Sales (2-5)
+            repeat(2 + rand.nextInt(4)) { i ->
+                val p = pList[rand.nextInt(pList.size)]
+                val qty = 1 + rand.nextInt(4)
+                val amount = p.sellingPrice * qty
+                val ts = dayStartMs + (7 + rand.nextInt(14)) * 3600000L + rand.nextInt(3600000)
+                val hasCust = rand.nextDouble() < 0.2
+                val cName = if (hasCust) names[rand.nextInt(names.size)] else null
+
+                _saleIdCounter++
+                val sale = SpecificSale(
+                    id = _saleIdCounter,
+                    date = fmt.format(Date(ts)),
+                    description = "${p.name} (test)",
+                    amount = amount,
+                    quantity = qty,
+                    customerName = cName,
+                    profit = (p.sellingPrice - p.costPrice) * qty,
+                    timestamp = ts
+                )
+                _specificSales.value = listOf(sale) + _specificSales.value
+                deductStock(p.id, qty)
+
+                if (cName != null) {
+                    val existing = _debts.value.find { it.customerName == cName }
+                    val dId = existing?.id ?: run {
+                        _debtIdCounter++
+                        val newD = CustomerDebt(id = _debtIdCounter, customerName = cName, amount = amount, remainingBalance = amount, createdAt = ts)
+                        _debts.value = listOf(newD) + _debts.value
+                        _debtIdCounter
+                    }
+                    addToDebtBalance(dId, amount)
+                    _debtTxIdCounter++
+                    _debtTransactions.value = listOf(DebtTransaction(id = _debtTxIdCounter, debtId = dId, type = "debt", description = p.name, amount = amount, timestamp = ts)) + _debtTransactions.value
+                    dCount++
+                }
+                sCount++
+            }
+
+            // Expenses (1-3)
+            repeat(1 + rand.nextInt(3)) {
+                val cat = categories[rand.nextInt(categories.size)]
+                val amount = (30 + rand.nextInt(300)).toDouble()
+                val ts = dayStartMs + (8 + rand.nextInt(12)) * 3600000L
+                _expenseIdCounter++
+                val exp = Expense(id = _expenseIdCounter, date = fmt.format(Date(ts)), category = cat, amount = amount, note = "Test expense", timestamp = ts)
+                _expenses.value = _expenses.value + exp
+                eCount++
+            }
+        }
+        return "Generated: $sCount sales, $dCount debts, $eCount expenses over 30 days"
+    }
+
     fun bulkAddItems(): Int {
         val rand = java.util.Random()
         val names = listOf(

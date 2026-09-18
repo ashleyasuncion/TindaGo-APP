@@ -1295,6 +1295,26 @@ Option C — Analytics & Export (medium risk — UI heavy)
 RECOMMENDED: A first (locks accuracy story for Ch.4), then B (action closes loop).
 Keep online-optional: Vercel sync stays backup/dashboard only — ML stays 100% offline.
 
+
+================================================================================
+EXPENSES CATEGORY DROPDOWN FIX (MOBILE)
+Date: Sept 18, 2026
+Status: IMPLEMENTED + VERIFIED
+
+PROBLEM:
+- In ExpensesScreen, pressing the expense category field did not open the dropdown menu.
+- The `.tutorialHighlight(...)` modifier was incorrectly placed directly on the `OutlinedTextField` inside the `ExposedDropdownMenuBox`, which obstructed the dropdown anchor and tap target interaction.
+
+SOLUTION:
+- Moved the `.fillMaxWidth()` and `.tutorialHighlight("expenseCategoryField", highlightState)` modifiers from the inner `OutlinedTextField` to the outer `ExposedDropdownMenuBox` container, allowing the Material 3 ExposedDropdownMenuBox and `.menuAnchor()` to work properly.
+
+FILES TOUCHED:
+- git/app/TindaGo_APP/app/src/main/java/com/example/tindago/ui/screens/ExpensesScreen.kt
+
+VERIFICATION:
+- ./gradlew :app:compileDebugKotlin — BUILD SUCCESSFUL
+- ./gradlew assembleDebug — BUILD SUCCESSFUL (37 tasks: up-to-date/executed)
+
 PENDING
 --------------------------------------------------------------------------------
 - Stage 7 Smoke (device): adb devices -> adb install -r app-debug.apk -> verify

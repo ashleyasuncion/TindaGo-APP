@@ -254,6 +254,15 @@ fun DeveloperPanel(
                         Toast.makeText(context, "Sample data loaded.", Toast.LENGTH_SHORT).show()
                     }
                 )
+                DevActionItem(
+                    icon = Icons.Default.CalendarMonth,
+                    label = "Generate 1 Month Data",
+                    desc = "Create realistic sales, debts & expenses across 30 days",
+                    onClick = {
+                        val summary = viewModel.generateMonthOfTestData()
+                        Toast.makeText(context, summary, Toast.LENGTH_LONG).show()
+                    }
+                )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 

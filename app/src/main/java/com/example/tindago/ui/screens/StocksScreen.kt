@@ -109,18 +109,17 @@ fun StocksScreen(
 
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // ── Search bar ──────────────────────────────────────────────────
+        // ── Search bar / Category Search Field ──────────────────────────
         item {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("searchItems".t(lang)) },
-                singleLine = true,
+            com.example.tindago.ui.components.CategorySearchField(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                selectedCategory = selectedCategory,
+                onSelectCategory = { selectedCategory = it },
+                lang = lang,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .tutorialHighlight("stockSearchBar", highlightState),
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                shape = MaterialTheme.shapes.medium
+                    .tutorialHighlight("stockSearchBar", highlightState)
             )
         }
 

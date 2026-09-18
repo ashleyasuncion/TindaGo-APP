@@ -1,5 +1,7 @@
 package com.example.tindago.ui.screens
 
+import android.app.DatePickerDialog
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,10 +10,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -31,6 +35,8 @@ import com.example.tindago.ui.localization.Strings
 import com.example.tindago.ui.localization.t
 import com.example.tindago.ui.theme.*
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.Locale
 
 /**
  * EXPENSE LOG — records store operating expenses (rent, utilities, transport,
@@ -190,7 +196,10 @@ fun ExpensesScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     ExposedDropdownMenuBox(
                         expanded = categoryDropdownExpanded,
-                        onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
+                        onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .tutorialHighlight("expenseCategoryField", highlightState)
                     ) {
                         OutlinedTextField(
                             value = if (category.isBlank()) "" else Strings.expenseCategoryLabel(category, lang),
@@ -200,8 +209,7 @@ fun ExpensesScreen(
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor()
-                                .tutorialHighlight("expenseCategoryField", highlightState),
+                                .menuAnchor(),
                             singleLine = true,
                             shape = MaterialTheme.shapes.medium
                         )
@@ -222,14 +230,71 @@ fun ExpensesScreen(
 
                     Text("expenseDate".t(lang), style = MaterialTheme.typography.labelMedium, color = Gray500)
                     Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedTextField(
-                        value = date,
-                        onValueChange = { date = it },
-                        placeholder = { Text(viewModel.today) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium
-                    )
+
+                    // Date picker state
+                    val context = LocalContext.current
+
+                    // Helper to parse date string to Calendar
+                    fun parseDateToCalendar(dateStr: String): Calendar {
+                        val cal = Calendar.getInstance(Locale.getDefault())
+                        try {
+                            val parts = dateStr.split("-")
+                            if (parts.size == 3) {
+                                cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+                            }
+                        } catch (e: Exception) {
+                            // Use current date if parsing fails
+                        }
+                        return cal
+                    }
+
+                    // Format Calendar to yyyy-MM-dd
+                    fun formatCalendarToDate(cal: Calendar): String =
+                        String.format(Locale.getDefault(), "%04d-%02d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+
+                    // Helper to open DatePickerDialog
+                    fun openDatePicker() {
+                        val cal = parseDateToCalendar(date)
+                        DatePickerDialog(
+                            context,
+                            { _, year, month, dayOfMonth ->
+                                val selectedCal = Calendar.getInstance(Locale.getDefault()).apply {
+                                    set(year, month, dayOfMonth)
+                                }
+                                date = formatCalendarToDate(selectedCal)
+                            },
+                            cal.get(Calendar.YEAR),
+                            cal.get(Calendar.MONTH),
+                            cal.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .tutorialHighlight("expenseDateField", highlightState)
+                    ) {
+                        OutlinedTextField(
+                            value = date,
+                            onValueChange = {},
+                            readOnly = true,
+                            placeholder = { Text(viewModel.today) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            trailingIcon = {
+                                IconButton(onClick = { openDatePicker() }) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = "expenseDate".t(lang), tint = Gray500)
+                                }
+                            }
+                        )
+                        // Invisible click overlay so tapping anywhere on the field opens the picker
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { openDatePicker() }
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 

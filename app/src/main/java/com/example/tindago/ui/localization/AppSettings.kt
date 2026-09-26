@@ -66,6 +66,11 @@ class AppSettings(context: Context) {
         get() = prefs.getString("report_period", "day") ?: "day"
         set(value) = prefs.edit().putString("report_period", value).apply()
 
+    /** Inventory "Sort by Forecast" toggle — survives app restart (web localStorage parity). */
+    var sortByForecast: Boolean
+        get() = prefs.getBoolean("sort_by_forecast", false)
+        set(value) = prefs.edit().putBoolean("sort_by_forecast", value).apply()
+
     fun getTextScaleFactor(): Float = when (textSize) {
         "standard" -> 1.0f
         "large" -> 1.125f

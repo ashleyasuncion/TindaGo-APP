@@ -246,21 +246,25 @@ fun DeveloperPanel(
                     }
                 )
                 DevActionItem(
-                    icon = Icons.Default.ContentPaste,
-                    label = "Seed Sample Data",
-                    desc = "Load default sample products & debts",
-                    onClick = {
-                        viewModel.seedSampleData()
-                        Toast.makeText(context, "Sample data loaded.", Toast.LENGTH_SHORT).show()
-                    }
-                )
-                DevActionItem(
                     icon = Icons.Default.CalendarMonth,
                     label = "Generate 1 Month Data",
                     desc = "Create realistic sales, debts & expenses across 30 days",
                     onClick = {
                         val summary = viewModel.generateMonthOfTestData()
                         Toast.makeText(context, summary, Toast.LENGTH_LONG).show()
+                    }
+                )
+                DevActionItem(
+                    icon = Icons.Default.ContentPaste,
+                    label = "Seed Sample Data",
+                    desc = "Load the full 225-item product catalog (web parity)",
+                    onClick = {
+                        viewModel.seedSampleData()
+                        Toast.makeText(
+                            context,
+                            "Seeded ${viewModel.products.value.size} products",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 )
 

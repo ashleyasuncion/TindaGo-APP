@@ -30,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.tindago.data.LocalSnackbarHost
 import com.example.tindago.data.LocalSnackbarScope
 import com.example.tindago.data.Product
+import com.example.tindago.ui.components.CategorySearchField
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
 import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
@@ -92,6 +93,8 @@ fun CheckoutScreen(
 
     // Form state
     var productQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("") }
+    var selectedSubcategory by remember { mutableStateOf("") }
     var selectedProductId by remember { mutableIntStateOf(-1) }
     var quantity by remember { mutableIntStateOf(1) }
     var customerName by remember { mutableStateOf("") }
@@ -111,15 +114,11 @@ fun CheckoutScreen(
     val selectedProduct = products.find { it.id == selectedProductId }
     val isQtySelectorDisabled = selectedProductId < 0
 
-    // Search covers ALL product identity fields (name, category, brand, unit,
-    // package size) — web v2.59 parity.
-    val filteredProducts = if (productQuery.isBlank()) {
-        products.sortedBy { if (it.quantity <= 0) 1 else 0 }.take(8)
-    } else {
-        viewModel.searchProducts(productQuery)
-            .sortedBy { if (it.quantity <= 0) 1 else 0 }
-            .take(8)
-    }
+    // index.html Section 2B parity: filteredProducts = search ∩ (subcategory ?: category)
+    // subcategory wins over category; search covers ALL identity fields including subcategory labels.
+    val filteredProducts = viewModel.getCheckoutFilteredProducts(productQuery, selectedCategory, selectedSubcategory)
+        .sortedBy { if (it.quantity <= 0) 1 else 0 }
+        .take(8)
 
     // Customer suggestions with balance/limit badges (web v2.56 parity)
     val usedCustomerNames = remember(debts) { debts.map { it.customerName }.distinct() }
@@ -299,21 +298,39 @@ fun CheckoutScreen(
                         modifier = Modifier.tutorialHighlight("checkoutSearch", highlightState)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedTextField(
-                        value = productQuery,
-                        onValueChange = {
+                    // index.html Sections 2A+2B+2C morphing drill-down field
+                    CategorySearchField(
+                        searchQuery = productQuery,
+                        onSearchQueryChange = {
                             productQuery = it
                             showSuggestions = true
                             selectedProductId = -1
                         },
-                        placeholder = { Text("searchItems".t(lang)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
+                        selectedCategory = selectedCategory,
+                        selectedSubcategory = selectedSubcategory,
+                        onSelectCategory = { cat ->
+                            selectedCategory = cat
+                            selectedSubcategory = ""
+                            showSuggestions = true
+                            selectedProductId = -1
+                        },
+                        onSelectSubcategory = { sub ->
+                            selectedSubcategory = sub
+                            showSuggestions = true
+                            selectedProductId = -1
+                        },
+                        onClearCategoryFilter = {
+                            selectedCategory = ""
+                            selectedSubcategory = ""
+                            showSuggestions = true
+                        },
+                        lang = lang
                     )
 
-                    // Product suggestions — out-of-stock rows greyed and unselectable (v2.58)
-                    if (showSuggestions && productQuery.isNotEmpty() && selectedProductId < 0 && filteredProducts.isNotEmpty()) {
+                    // Product suggestions — filtered by drill-down (subcategory ?: category) ∩ search.
+                    // Shows when a category/subcategory is active even with empty query.
+                    // Out-of-stock rows greyed and unselectable (v2.58).
+                    if (showSuggestions && selectedProductId < 0 && filteredProducts.isNotEmpty() && (productQuery.isNotEmpty() || selectedCategory.isNotBlank())) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),

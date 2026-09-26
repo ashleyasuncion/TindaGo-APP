@@ -1323,5 +1323,124 @@ PENDING
 - support@tindago.com placeholder still pending (Strings.kt + web app.js/help/download).
 - See also: git/TindaGo/progress.txt V3.5 + standalone Sari-sari_smart copy pending sync.
 
+===============================================================================
+STAGE 7 SMOKE — DEVICE (Sept 26, 2026)
+Status: PARTIAL (installed; UI verify blocked by device PIN lock)
+--------------------------------------------------------------------------------
+- adb devices: Vivo V2344 (Android 14) connected via ADB-TLS (wireless).
+- adb install -r app-debug.apk -> Success (22.7 MB).
+- MainActivity launched; screen stayed on keyguard — device is PIN-locked
+  (Vivo numeric keypad), so automated UI verification of the forecast screens
+  could NOT be completed from this machine.
+- Remaining (needs unlocked device / manual): Stocks toggle sorts by
+  predictedDaysUntilOut, Reports 14d dots, Morning 7d card, ProductDetail
+  ForecastDetailCard + bars, EN<->FIL toggle.
+- App-side support@tindago.com placeholder code CONFIRMED applied in all 4
+  files (git/TindaGo/app.js EN+FIL, help.html, download.html,
+  git/app/.../Strings.kt EN+FIL). Only remaining item is REGISTERING the
+  support@tindago.com domain before shipping (external action, not code).
+
+
+================================================================================
+
+
+================================================================================
+INVENTORY SEARCH-CONTROL REMOVED (MOBILE)
+Date: Sept 25, 2026
+Status: IMPLEMENTED
+
+REQUEST:
+- User: "remove the [search-control] in the mobile app ver inventory".
+  `search-control` / `#searchControl` is the category + search morphing field in
+  the web prototype (git/TindaGo/inventory.html). Its Android twin was the
+  CategorySearchField composable rendered at the top of StocksScreen.
+
+SOLUTION (mobile only):
+- StocksScreen.kt: removed the CategorySearchField item (with its
+  tutorialHighlight("stockSearchBar")), plus the now-dead searchQuery /
+  searchMode state, the LaunchedEffect(Unit) reset, the viewModel.searchProducts
+  branch in filteredProducts, the "No items match your search." empty state and
+  the unused Icons.Default.Search import. Category filtering is unchanged: the
+  existing category chips (collapsed LazyRow / expanded FlowRow) are now the
+  only inventory filter (web v2.59 renderInventoryCatFilters parity kept).
+- CategorySearchField.kt: no longer referenced -> moved to
+  git/app/TindaGo_APP/_removed/CategorySearchField.kt (kept for easy restore;
+  the subcategory drill-down went away with the field).
+- Tutorial wiring kept consistent (same step counts / i18n keys):
+  TutorialOverlay.kt stock tutorial highlights[1] "stockSearchBar" -> null;
+  NavGraph.kt TutorialStep("tutorial11", "inventory", "stockSearchBar") ->
+  TutorialStep("tutorial11", "inventory"); Strings.kt stockTutorial2 (EN+FIL)
+  and tutorial11 (EN+FIL) copy no longer mention the search bar;
+  tutorials/stock_tutorial.txt + tutorials/main_tutorial.txt updated.
+
+AFFECTED FILES (mobile, git copy):
+- ui/screens/StocksScreen.kt
+- ui/components/TutorialOverlay.kt
+- ui/navigation/NavGraph.kt
+- ui/localization/Strings.kt
+- ui/components/CategorySearchField.kt (archived under _removed/)
+- tutorials/stock_tutorial.txt, tutorials/main_tutorial.txt
+
+NOTE:
+- The web prototype (git/TindaGo/inventory.html) still renders its own
+  #searchControl field - this change is mobile-only, so the two versions now
+  differ on the Inventory screen, and the mobile app has no inventory text
+  search until a plain search bar is added back.
+================================================================================
+
+================================================================================
+SEARCH-CONTROL RE-ADDED (MOBILE) — STAGES 1-4
+Date: Sept 25, 2026
+Status: IMPLEMENTED (all 4 stages, BUILD SUCCESSFUL)
+
+CONTEXT:
+- Earlier entry above removed the CategorySearchField from StocksScreen and
+  archived it to _removed/. The web prototype then evolved: the [search-control]
+  component (category dropdown + morphing search input) is now shared by both
+  the checkout picker AND the inventory picker. This work ports the shared
+  component to the Android Stocks (inventory) page for exact UI parity, replacing
+  the old category-filter chip row, while keeping the checkout behavior intact.
+
+STAGE 1 - TEXT-SEARCH + FILTER WIRING:
+- StocksScreen: restored searchQuery / searchMode state, the morphing field as
+  the first LazyColumn item, and the contract with AppViewModel; re-declared
+  catExpanded (removed all stale FlowRow / LazyRow / ExperimentalLayoutApi refs
+  from the live file). Verify: full rebuild clean (net -80 lines agreed in review).
+
+STAGE 2 - COMPONENT ADOPTION:
+- Replaced the removed chip row on Stocks with the (checkout) component instance,
+  all callbacks (onSearchQueryChange / onSelectCategory / onSelectSubcategory /
+  onClearCategoryFilter) wired to Stocks' own filter state. Checkout unchanged.
+
+STAGE 3 - FILTER PARITY:
+- AppViewModel.getInventoryFilteredProducts() now exactly mirrors
+  getCheckoutFilteredProducts() (subcategory ?: category) ∩ search — line-for-line
+  parity with web app.js:3131. getCheckoutFilteredProducts kept (still used by
+  CheckoutScreen).
+
+STAGE 4 - LABEL PARAMETERIZATION + GENERIC RENAME:
+- Renamed CheckoutCategorySearchField -> CategorySearchField (ui/components/
+  CategorySearchField.kt), generic since it is now shared by Checkout + Stocks.
+  Old file deleted from source set; _removed/CategorySearchField.kt (earlier
+  archive) intentionally left untouched for history (not in the compile source set).
+- Added trailing param categoryPlaceholder: String = "Category":
+  * Checkout passes the default "Category" (web index.html collapsed label).
+  * Stocks passes "catAll".t(lang) -> "All"/"Lahat"
+    (inventory.html updLabel t('catAll')) — exact per-screen parity.
+- Call sites updated in CheckoutScreen.kt + StocksScreen.kt (call + import).
+
+AFFECTED FILES (live, git copy):
+- app/src/main/java/com/example/tindago/ui/components/CategorySearchField.kt
+- app/src/main/java/com/example/tindago/ui/components/CheckoutCategorySearchField.kt (deleted)
+- app/src/main/java/com/example/tindago/ui/screens/StocksScreen.kt
+- app/src/main/java/com/example/tindago/ui/screens/CheckoutScreen.kt
+- app/src/main/java/com/example/tindago/ui/screens/AppViewModel.kt
+
+VERIFICATION:
+- ./gradlew :app:compileDebugKotlin --offline --console=plain
+  BUILD SUCCESSFUL (only pre-existing warnings: Icons.AutoMirrored.ArrowBack
+  deprecation carried over, Locale deprecation at StocksScreen:55).
+- No lingering CheckoutCategorySearchField references in the live source set
+  (remaining hits only in backup/ + _removed/ + _verify.py, none compiled).
 ================================================================================
 

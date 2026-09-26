@@ -132,16 +132,16 @@ STEP 10 — Day Complete
   Transition     : none
   Interaction    : see the button, tap Next
 ----------------------------------------------------------------------
-STEP 11 — Inventory search
+STEP 11 — Inventory page intro
   Key      : tutorial11
-  Text EN : "The Inventory page lets you search, add, and manage all your stock items in one place."
-  Text FIL: "Ang Inventory page ay nagbibigay-daan sa iyo na maghanap, magdagdag, at mamahala ng stock."
+  Text EN : "The Inventory page lets you add and manage all your stock items in one place."
+  Text FIL: "Ang Inventory page ay nagbibigay-daan sa iyo na magdagdag at mamahala ng stock."
   Target page    : inventory  (navigates from closing)
-  Target element : stockSearchBar (StocksScreen)
-  Highlight      : the search bar (top of page)
-  Box position   : expected bottom
+  Target element : none (web search-control field removed from StocksScreen)
+  Highlight      : none
+  Box position   : bottom center
   Transition     : Next navigates closing -> inventory
-  Interaction    : look at the search bar, tap Next
+  Interaction    : read text, tap Next
 ----------------------------------------------------------------------
 STEP 12 — Add Stock button
   Key      : tutorial12

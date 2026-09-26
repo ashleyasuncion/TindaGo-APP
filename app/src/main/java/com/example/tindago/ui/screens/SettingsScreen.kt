@@ -789,6 +789,9 @@ fun SettingsScreen(
                 }
             } // end if (smsEnabled)
             } // end CollapsibleSection (SMS)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // ── Automatic Backup ──
             var backupExpanded by remember { mutableStateOf(false) }
             CollapsibleSection(
@@ -867,26 +870,6 @@ fun SettingsScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Backup Now button
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val result = viewModel?.backupNow(context, true)
-                            val message = if (result?.success == true) {
-                                "backup_success".t(settings.language)
-                            } else {
-                                "backup_failed".t(settings.language).replace("{error}", result?.error ?: "Unknown")
-                            }
-                            snackbarHostState.showSnackbar(message)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("backup_now".t(settings.language))
-                }
-            } // end CollapsibleSection (Backup)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Backup Location (SAF)
@@ -931,12 +914,29 @@ fun SettingsScreen(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Backup Now button
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val result = viewModel?.backupNow(context, true)
+                            val message = if (result?.success == true) {
+                                "backup_success".t(settings.language)
+                            } else {
+                                "backup_failed".t(settings.language).replace("{error}", result?.error ?: "Unknown")
+                            }
+                            snackbarHostState.showSnackbar(message)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("backup_now".t(settings.language))
+                }
+            } // end CollapsibleSection (Backup)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             // ═══════════════════════════════════════════════════════
             // ── Data ──

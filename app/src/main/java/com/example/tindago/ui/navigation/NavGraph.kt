@@ -44,7 +44,7 @@ val tutorialSteps = listOf(
     TutorialStep("tutorial8", "closing"),                                    // Closing screen
     TutorialStep("tutorial9", "closing", "closingEarnings"),                // Cost + earnings
     TutorialStep("tutorial10", "closing", "completeDayBtn"),                 // Day Complete
-    TutorialStep("tutorial11", "inventory", "stockSearchBar"),              // Inventory search
+    TutorialStep("tutorial11", "inventory"),                                // Inventory page (search control removed)
     TutorialStep("tutorial12", "inventory", "addStockBtn"),                  // Add Stock button
     TutorialStep("tutorial13", "debts", "totalDebtCard"),                   // Debts total
     TutorialStep("tutorial14", "settings", "settingsLanguage")               // Settings
@@ -572,6 +572,7 @@ fun NavGraph(
                 ) { paddingValues ->
                     StocksScreen(
                         viewModel = appViewModel,
+                        appSettings = appSettings,
                         onAddStock = { navController.navigate(Routes.addStock()) },
                         onProductClick = { id -> navController.navigate(Routes.productDetail(id)) },
                         onLaunchTutorial = { startPageTutorial("stock") },

@@ -1,0 +1,20 @@
+{
+  // Fix: force Gradle + Java LS to use Android Studio JBR (full JDK with jlink.exe)
+  // The VS Code RedHat extension JRE (redhat.java-1.56.0.../jre/21.../bin) is stripped and breaks AGP JdkImageTransform for compileSdk 36
+  "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "C:\\Program Files\\Android\\Android Studio\\jbr",
+      "default": true
+    },
+    {
+      "name": "JavaSE-21",
+      "path": "C:\\Program Files\\Android\\Android Studio\\jbr"
+    }
+  ],
+  "java.import.gradle.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.import.gradle.wrapper.enabled": true,
+  "java.import.gradle.version": "9.4.1",
+  "java.import.gradle.enabled": true
+}

@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Search
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +18,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,6 +26,8 @@ import com.example.tindago.data.Product
 import com.example.tindago.data.StockStatus
 import com.example.tindago.data.ml.ForecastBadge
 import com.example.tindago.data.ml.ForecastEngine
+import com.example.tindago.data.ml.ForecastResult
+import com.example.tindago.ui.localization.AppSettings
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.t
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,6 +36,7 @@ import com.example.tindago.ui.theme.TindaGoTheme
 import com.example.tindago.ui.components.LocalScreenLazyListState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
 import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
+import com.example.tindago.ui.components.CategorySearchField
 import com.example.tindago.ui.components.tutorialHighlight
 import java.text.NumberFormat
 import java.util.*
@@ -42,10 +45,10 @@ import java.util.*
  * STOCKS SCREEN — Inventory management.
  * Matches inventory.html from the web prototype exactly.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StocksScreen(
     viewModel: AppViewModel,
+    appSettings: AppSettings,
     onAddStock: () -> Unit,
     onProductClick: (Int) -> Unit = {},
     onLaunchTutorial: (() -> Unit)? = null,
@@ -57,34 +60,55 @@ fun StocksScreen(
     val highlightState = LocalTutorialHighlightState.current
 
     val products by viewModel.products.collectAsState()
+    // Search query for product name/brand search (web inventory.html parity).
     var searchQuery by remember { mutableStateOf("") }
     // Category filter ('' = all). Products without a category only match 'all'
     // (web v2.59 renderManageInventory parity).
     var selectedCategory by remember { mutableStateOf("") }
-    var sortByForecast by rememberSaveable { mutableStateOf(false) }
-    var catExpanded by remember { mutableStateOf(false) }
+    // Subcategory within [selectedCategory] ('' = all). index.html Section 2B
+    // two-level drill-down; cleared whenever the category changes.
+    var selectedSubcategory by remember { mutableStateOf("") }
+    var sortByForecast by remember { mutableStateOf(appSettings.sortByForecast) }
 
     val specificSales by viewModel.specificSales.collectAsState()
-    val filteredProducts = remember(products, searchQuery, selectedCategory, specificSales, viewModel.today, sortByForecast) {
-        val searched = if (searchQuery.isNotBlank()) {
-            viewModel.searchProducts(searchQuery)
+    // ── Forecast urgency rank (mirrors web app.js forecastUrgencyRank) ──
+    // Lower = more urgent (appears first).
+    //   out-of-stock (currentStock <= 0) → rank 0  (always first)
+    //   no prediction / collecting / no demand → Int.MAX_VALUE  (always last)
+    //   otherwise → predictedDaysUntilOut (ascending — soonest-to-run-out first)
+    val forecastUrgencyRank: (ForecastResult) -> Int = { r ->
+        when {
+            r.currentStock <= 0                   -> 0
+            r.predictedDaysUntilOut == null        -> Int.MAX_VALUE
+            else                                   -> r.predictedDaysUntilOut
+        }
+    }
+
+    val filteredProducts = remember(products, searchQuery, selectedCategory, selectedSubcategory, specificSales, viewModel.today, sortByForecast) {
+        // Combined text + category filtering using getInventoryFilteredProducts
+        // (inventory-dedicated twin of the checkout method; web renderManageInventory).
+        val byCategory = if (searchQuery.isNotBlank() || selectedCategory.isNotBlank() || selectedSubcategory.isNotBlank()) {
+            viewModel.getInventoryFilteredProducts(searchQuery, selectedCategory, selectedSubcategory)
         } else {
             products
         }
-        val byCategory = if (selectedCategory.isNotBlank()) {
-            viewModel.getProductsByCategory(selectedCategory)
-                .filter { p -> searched.any { it.id == p.id } }
+        // Default: stock status → quantity ascending → name (web stkRank parity).
+        val statusRank: (Product) -> Int = { when (it.status) {
+            StockStatus.OUT_OF_STOCK -> 0
+            StockStatus.LOW          -> 1
+            StockStatus.PLENTY       -> 2
+        } }
+        if (!sortByForecast) {
+            // Default sort: status rank → quantity → name (mobile + web Stage 1 parity).
+            byCategory.sortedWith(compareBy(statusRank, { it.quantity }, { it.name.lowercase() }))
         } else {
-            searched
-        }
-        val statusRank: (Product) -> Int = { when (it.status) { StockStatus.OUT_OF_STOCK -> 0; StockStatus.LOW -> 1; StockStatus.PLENTY -> 2 } }
-        val baseSorted = byCategory.sortedWith(
-            compareBy(statusRank, { it.quantity }, { it.name.lowercase() })
-        )
-        if (!sortByForecast) baseSorted else {
+            // Forecast sort: rank by learned urgency (out-of-stock first, predicted days
+            // ascending), tie-break by name. Applied to the raw filtered list (not the
+            // already-sorted base), mirroring web app.js forecastUrgencyRank + name.
             val today = viewModel.today
-            baseSorted.map { p -> p to (ForecastEngine.forecastForProduct(p, specificSales, today).predictedDaysUntilOut ?: 999) }
-                .sortedBy { it.second }
+            byCategory
+                .map { p -> Triple(p, ForecastEngine.forecastForProduct(p, specificSales, today).let { r -> forecastUrgencyRank(r) to r }, p.name.lowercase()) }
+                .sortedWith(compareBy({ it.second.first }, { it.third }))
                 .map { it.first }
         }
     }
@@ -93,7 +117,7 @@ fun StocksScreen(
     val scrollStateHolder = LocalTutorialScrollStateHolder.current
     LaunchedEffect(listState) { scrollStateHolder.updateLazyListState(listState) }
     val coroutineScope = rememberCoroutineScope()
-    // Show back-to-top when scrolled past ~3 items (search + cat chips + add button).
+    // Show back-to-top when scrolled past ~3 items (search control + add + restock buttons).
     val showBackToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 2 }
     }
@@ -109,101 +133,36 @@ fun StocksScreen(
 
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // ── Search bar / Category Search Field ──────────────────────────
+
+        // ── Search control (web [search-control] parity) ────────────────
+        // Morphing drill-down field: collapsed category button + search icon,
+        // expanding into a text search input (index.html Sections 2A+2B+2C).
+        // Replaced the old category-filter chip row in Stage 2 for exact web UI
+        // parity. Callbacks drive the same selectedCategory / selectedSubcategory
+        // state that feeds getInventoryFilteredProducts() in the list filter.
         item {
-            com.example.tindago.ui.components.CategorySearchField(
+            CategorySearchField(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it },
                 selectedCategory = selectedCategory,
-                onSelectCategory = { selectedCategory = it },
+                selectedSubcategory = selectedSubcategory,
+                onSelectCategory = { cat ->
+                    selectedCategory = cat
+                    selectedSubcategory = ""
+                },
+                onSelectSubcategory = { sub ->
+                    selectedSubcategory = sub
+                },
+                onClearCategoryFilter = {
+                    selectedCategory = ""
+                    selectedSubcategory = ""
+                },
                 lang = lang,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .tutorialHighlight("stockSearchBar", highlightState)
+                    .tutorialHighlight("stockSearchBar", highlightState),
+                // web inventory.html updLabel() parity: default label is t('catAll').
+                categoryPlaceholder = "catAll".t(lang)
             )
-        }
-
-        // ── Category filter chips (web v2.59 renderInventoryCatFilters parity) ──
-        // Collapsed: LazyRow (horizontal scroll, first 6 + More ▾)
-        // Expanded: FlowRow (wraps onto multiple lines, Less ▴)
-        // This matches the web version's .cat-chips / .cat-chips.expanded
-        // behavior where expanded = flex-wrap:wrap.
-        item {
-            val allKeys = listOf("") + com.example.tindago.data.ProductCatalog.CATEGORIES
-            if (catExpanded) {
-                // Expanded — chips wrap onto multiple lines (web flex-wrap:wrap parity)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(bottom = 4.dp)
-                ) {
-                    allKeys.forEach { key ->
-                        FilterChip(
-                            selected = selectedCategory == key,
-                            onClick = { selectedCategory = key },
-                            label = {
-                                Text(
-                                    if (key == "") "catAll".t(lang)
-                                    else com.example.tindago.ui.localization.Strings.productCategoryLabel(key, lang)
-                                )
-                            }
-                        )
-                    }
-                    if (allKeys.size > 6) {
-                        FilterChip(
-                            selected = false,
-                            onClick = { catExpanded = false },
-                            label = {
-                                Text(
-                                    if (lang == "fil") "Bawas \u25B4" else "Less \u25B4"
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = Color(0xFFF0FDF4),
-                                labelColor = Color(0xFF16A34A)
-                            )
-                        )
-                    }
-                }
-            } else {
-                // Collapsed — horizontal scroll, first 6 chips + More ▾ button
-                val visibleKeys = allKeys.take(6)
-                androidx.compose.foundation.lazy.LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 6.dp)
-                ) {
-                    items(visibleKeys.size) { index ->
-                        val key = visibleKeys[index]
-                        FilterChip(
-                            selected = selectedCategory == key,
-                            onClick = { selectedCategory = key },
-                            label = {
-                                Text(
-                                    if (key == "") "catAll".t(lang)
-                                    else com.example.tindago.ui.localization.Strings.productCategoryLabel(key, lang)
-                                )
-                            }
-                        )
-                    }
-                    if (allKeys.size > 6) {
-                        item {
-                            FilterChip(
-                                selected = false,
-                                onClick = { catExpanded = true },
-                                label = {
-                                    Text(
-                                        if (lang == "fil") "Dagdag \u25BE" else "More \u25BE"
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = Color(0xFFF0FDF4),
-                                    labelColor = Color(0xFF16A34A)
-                                )
-                            )
-                        }
-                    }
-                }
-            }
         }
 
         // ── Add Stock button ────────────────────────────────────────────
@@ -239,22 +198,23 @@ fun StocksScreen(
         }
 
         // ── Product list ────────────────────────────────────────────────
-        if (filteredProducts.isEmpty() && searchQuery.isNotBlank()) {
-            item {
-                Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("\uD83D\uDD0D", style = MaterialTheme.typography.displayMedium)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("No items match your search.", style = MaterialTheme.typography.bodyMedium, color = Gray400)
-                    }
-                }
-            }
-        }
 
         item {
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("\uD83D\uDD2E " + "forecastDetailTitle".t(lang), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Gray700)
-                FilterChip(selected = sortByForecast, onClick = { sortByForecast = !sortByForecast }, label = { Text(if (sortByForecast) "\u2713 Forecast" else "Sort by forecast") })
+                FilterChip(
+                    selected = sortByForecast,
+                    onClick = {
+                        sortByForecast = !sortByForecast
+                        appSettings.sortByForecast = sortByForecast
+                    },
+                    label = {
+                        Text(
+                            if (sortByForecast) "forecastSortToggle".t(lang)
+                            else "\ud83d\udd2e " + "forecastSortOff".t(lang)
+                        )
+                    }
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -270,7 +230,7 @@ fun StocksScreen(
             )
         }
 
-        if (filteredProducts.isEmpty() && searchQuery.isBlank()) {
+        if (filteredProducts.isEmpty()) {
             item {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -390,10 +350,12 @@ private fun InventoryProductCard(
 @Preview(showBackground = true, name = "Stocks Screen")
 @Composable
 fun StocksScreenPreview() {
+    val context = LocalContext.current
     TindaGoTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             StocksScreen(
                 viewModel = remember { AppViewModel() },
+                appSettings = remember { AppSettings(context) },
                 onAddStock = {},
                 onProductClick = {}
             )

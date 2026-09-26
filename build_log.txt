@@ -1,0 +1,26 @@
+Reusing configuration cache.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///C:/Users/PLP23-00167/Desktop/Capstone%20App/git/app/TindaGo_APP/app/src/main/java/com/example/tindago/ui/localization/Strings.kt:2098:13 Duplicate branch condition in 'when'.
+w: file:///C:/Users/PLP23-00167/Desktop/Capstone%20App/git/app/TindaGo_APP/app/src/main/java/com/example/tindago/ui/screens/StocksScreen.kt:59:59 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+
+BUILD SUCCESSFUL in 25s
+15 actionable tasks: 2 executed, 13 up-to-date
+Configuration cache entry reused.

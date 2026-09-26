@@ -62,7 +62,7 @@ val pageTutorials = listOf(
         highlights = listOf(null, null, "morningStockCard", "morningDebtCard", null, null, null, null, null, null),
         replayHintKey = "tutorialReplayHint"),
     PageTutorial("stock", "tutStock", "stockTutorial", 10, "inventory",
-        highlights = listOf(null, "stockSearchBar", "addStockBtn", null, "inventoryList", null, null, null, null, null),
+        highlights = listOf(null, null, "addStockBtn", null, "inventoryList", null, null, null, null, null),
         replayHintKey = "tutorialReplayHint"),
     PageTutorial("sales", "tutSales", "salesTutorial", 10, "day",
         highlights = listOf(null, null, null, "dayStatsGrid", null, "dayStatsGrid", "sellFab", "dayTxFeed", null, null),

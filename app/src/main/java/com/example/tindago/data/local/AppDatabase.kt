@@ -23,7 +23,7 @@ import com.example.tindago.data.local.entity.*
         ExpenseEntity::class,
         SmsLogEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -50,7 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "tindago_db"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
@@ -176,6 +176,16 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `customer_debts` ADD COLUMN `phoneNumber` TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE `customer_debts` ADD COLUMN `smsOptIn` INTEGER")
+            }
+        }
+
+        /**
+         * v11 → v12: add `subcategory` to products (index.html 2B drill-down).
+         * Non-destructive: existing rows get empty subcategory.
+         */
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `subcategory` TEXT NOT NULL DEFAULT ''")
             }
         }
 

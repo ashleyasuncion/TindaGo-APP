@@ -17,6 +17,8 @@ data class ProductEntity(
     val lowStockThreshold: Int = 5,
     // v2.59 parity (web units/brands/categories feature). Room migration v6→v7.
     val category: String = "",
+    // index.html Section 2B two-level drill-down — category → subcategory. Migration v11→v12.
+    val subcategory: String = "",
     val brand: String = "",
     val packageSize: String = ""
 ) {
@@ -35,6 +37,7 @@ data class ProductEntity(
         unit = unit,
         lowStockThreshold = lowStockThreshold,
         category = category,
+        subcategory = subcategory,
         brand = brand,
         packageSize = packageSize
     )
@@ -49,6 +52,7 @@ data class ProductEntity(
             unit = product.unit,
             lowStockThreshold = product.lowStockThreshold,
             category = product.category,
+            subcategory = product.subcategory,
             brand = product.brand,
             packageSize = product.packageSize
         )

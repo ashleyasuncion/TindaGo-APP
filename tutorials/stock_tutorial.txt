@@ -23,14 +23,14 @@ STEP 1 — Stocks page intro
   Highlight      : none
   Box position   : bottom center
   Interaction    : read text, tap Next
-STEP 2 — Search bar
+STEP 2 — Category chips
   Key      : stockTutorial2
-  Text EN : "Use the Search bar to quickly find any item by typing its name."
-  Text FIL: "Gamitin ang Search bar para mabilis na makahanap ng item sa pamamagitan ng pag-type ng pangalan nito."
-  Target element : stockSearchBar (StocksScreen)
-  Highlight      : the search bar (top of page)
-  Box position   : expected bottom
-  Interaction    : look at the search bar, tap Next
+  Text EN : "Use the category chips to filter the list. Tap the \"All\" chip to show every item."
+  Text FIL: "Gamitin ang category chips para i-filter ang listahan. I-tap ang \"All\" chip para ipakita ang lahat."
+  Target element : none (web search-control field removed from StocksScreen)
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 3 — Add Stock
   Key      : stockTutorial3
   Text EN : "Tap \"Add Stock\" to add new products or restock existing ones. Fill in the name, quantity, cost per unit, and selling price. You can set a markup percentage to auto-calculate the selling price."

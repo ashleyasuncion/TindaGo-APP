@@ -18,6 +18,10 @@ data class Product(
     /** Category key (web v2.59 parity — one of [ProductCatalog.CATEGORIES]).
      *  Empty string = uncategorized. */
     val category: String = "",
+    /** Subcategory key within [ProductCatalog.SUBCATEGORIES] for [category].
+     *  Empty string = no subcategory (or category-less). Demanded by the
+     *  index.html Section 2B two-level drill-down on Checkout. */
+    val subcategory: String = "",
     /** Brand name (web v2.59 parity). Empty string = no brand. */
     val brand: String = "",
     /** Package size (web v2.59 parity), e.g. "155g", "1L". Empty = none. */
@@ -38,17 +42,33 @@ data class Product(
  */
 object ProductCatalog {
     val CATEGORIES = listOf(
-        "soft_drinks", "bottled_water", "instant_coffee", "instant_noodles",
-        "rice", "canned_sardines", "canned_tuna", "eggs", "bread",
-        "biscuits", "chocolate", "chips", "salt", "sugar",
-        "shampoo", "bath_soap", "laundry", "toothcare",
-        "mosquito", "cigarettes"
+        "pantry_staples", "canned_goods", "instant_dry_goods", "snacks_sweets",
+        "beverages", "dairy_refrigerated", "fresh_section", "liquor_wine",
+        "personal_care", "household_care", "baby_care", "paper_sanitary"
     )
 
     val UNITS = listOf(
         "piece", "sachet", "pack", "box", "bottle", "can",
         "kg", "g", "L", "mL", "bundle", "dozen",
         "sack", "loaf", "tube", "bar", "sticks"
+    )
+
+    /** Two-level drill-down for Checkout — index.html Section 2B parity.
+     *  Each category maps to its 3–5 subcategories. Keys are lowercase
+     *  underscore IDs; labels resolved via Strings.productSubcategoryLabel(). */
+    val SUBCATEGORIES: Map<String, List<String>> = mapOf(
+        "pantry_staples" to listOf("rice", "cooking_oil", "sugar", "salt", "vinegar", "bread"),
+        "canned_goods" to listOf("sardines", "corned_beef", "tuna", "meat_loaf", "sausage"),
+        "instant_dry_goods" to listOf("instant_noodles", "cup_noodles", "pasta", "soup_mixes"),
+        "snacks_sweets" to listOf("chips", "crackers", "candies", "chocolates", "cookies"),
+        "beverages" to listOf("coffee_mix", "powdered_milk", "chocolate_drink", "juice", "soft_drinks", "bottled_water"),
+        "dairy_refrigerated" to listOf("cheese", "butter", "margarine", "chilled_meats"),
+        "fresh_section" to listOf("fresh_meat", "fresh_seafood", "fruits", "vegetables", "eggs"),
+        "liquor_wine" to listOf("beer", "gin", "brandy", "wine", "cigarettes"),
+        "personal_care" to listOf("shampoo", "conditioner", "bath_soap", "toothpaste", "toothbrush", "lotion", "cosmetics"),
+        "household_care" to listOf("laundry", "fabric_softener", "dishwashing", "cleaners", "trash_bags", "mosquito_control"),
+        "baby_care" to listOf("diapers", "baby_wipes", "baby_toiletries"),
+        "paper_sanitary" to listOf("tissue", "paper_towels", "sanitary_pads")
     )
 }
 

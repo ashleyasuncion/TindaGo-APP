@@ -41,6 +41,161 @@ object Strings {
         "catMosquito" to "Mosquito Coils",
         "catCigarettes" to "Cigarettes",
         "catOther" to "Other",
+        "catPantryStaples" to "Pantry Staples",
+        "catCannedGoods" to "Canned Goods",
+        "catInstantDryGoods" to "Instant & Dry Goods",
+        "catSnacksSweets" to "Snacks & Sweets",
+        "catBeverages" to "Beverages",
+        "catDairyRefrigerated" to "Dairy & Refrigerated",
+        "catFreshSection" to "Fresh Section",
+        "catLiquorWine" to "Liquor & Wine",
+        "catPersonalCare" to "Personal Care",
+        "catHouseholdCare" to "Household Care",
+        "catBabyCare" to "Baby Care",
+        "catPaperSanitary" to "Paper & Sanitary",
+        "subcategoriesLabel" to "Subcategories",
+        "searchPlaceholder" to "Search...",
+
+        // ── Subcategories (index.html Section 2B — Checkout drill-down) ──
+        "subCola" to "Cola",
+        "subCitrus" to "Citrus",
+        "subOrange" to "Orange",
+        "subIcedTea" to "Iced Tea",
+        "subEnergy" to "Energy Drink",
+        "subPurified" to "Purified",
+        "subMineral" to "Mineral",
+        "subDistilled" to "Distilled",
+        "subSparkling" to "Sparkling",
+        "sub3in1" to "3-in-1",
+        "subBlack" to "Black",
+        "subBrown" to "Brown",
+        "subWhiteCoffee" to "White Coffee",
+        "subChicken" to "Chicken",
+        "subBeef" to "Beef",
+        "subSeafood" to "Seafood",
+        "subSpicy" to "Spicy",
+        "subPancitCanton" to "Pancit Canton",
+        "subWhiteRice" to "White Rice",
+        "subBrownRice" to "Brown Rice",
+        "subJasmine" to "Jasmine",
+        "subSinandomeng" to "Sinandomeng",
+        "subDinorado" to "Dinorado",
+        "subSardines" to "Sardines",
+        "subMackerel" to "Mackerel",
+        "subTomato" to "Tomato Sauce",
+        "subSpicySardines" to "Spicy Sardines",
+        "subFlakesInOil" to "Flakes in Oil",
+        "subFlakesInWater" to "Flakes in Water",
+        "subChunks" to "Chunks",
+        "subSpicyTuna" to "Spicy Tuna",
+        "subChickenEgg" to "Chicken Egg",
+        "subDuckEgg" to "Duck Egg",
+        "subQuailEgg" to "Quail Egg",
+        "subSaltedEgg" to "Salted Egg",
+        "subBrownEgg" to "Brown Egg",
+        "subPandesal" to "Pandesal",
+        "subLoaf" to "Loaf",
+        "subTasty" to "Tasty",
+        "subMonay" to "Monay",
+        "subEnsaymada" to "Ensaymada",
+        "subCreamFilled" to "Cream Filled",
+        "subCrackers" to "Crackers",
+        "subWafers" to "Wafers",
+        "subCookies" to "Cookies",
+        "subMilkChocolate" to "Milk Chocolate",
+        "subDark" to "Dark Chocolate",
+        "subCandy" to "Candy",
+        "subGum" to "Chewing Gum",
+        "subLollipop" to "Lollipop",
+        "subPotato" to "Potato",
+        "subCorn" to "Corn",
+        "subPrawn" to "Prawn Crackers",
+        "subExtruded" to "Extruded",
+        "subMixed" to "Mixed",
+        "subIodized" to "Iodized",
+        "subRock" to "Rock Salt",
+        "subSea" to "Sea Salt",
+        "subFine" to "Fine Salt",
+        "subWhiteSugar" to "White Sugar",
+        "subBrownSugar" to "Brown Sugar",
+        "subWashed" to "Washed Sugar",
+        "subMuscovado" to "Muscovado",
+        "subShampoo" to "Shampoo",
+        "subConditioner" to "Conditioner",
+        "subTwoInOne" to "2-in-1",
+        "subTreatment" to "Treatment",
+        "subBeautyBar" to "Beauty Bar",
+        "subAntibacterial" to "Antibacterial",
+        "subPapaya" to "Papaya",
+        "subKojic" to "Kojic",
+        "subHerbal" to "Herbal",
+        "subPowder" to "Powder",
+        "subBarSoap" to "Bar Soap",
+        "subLiquid" to "Liquid",
+        "subFabricConditioner" to "Fabric Conditioner",
+        "subToothpaste" to "Toothpaste",
+        "subToothbrush" to "Toothbrush",
+        "subMouthwash" to "Mouthwash",
+        "subCoil" to "Coil",
+        "subSpray" to "Spray",
+        "subLotion" to "Lotion",
+        "subVaporizer" to "Vaporizer",
+        "subLights" to "Lights",
+        "subMenthol" to "Menthol",
+        "subRegular" to "Regular",
+        "subKretek" to "Kretek",
+        "subBabyToiletries" to "Baby Toiletries",
+        "subBabyWipes" to "Baby Wipes",
+        "subBathSoap" to "Bath Soap",
+        "subBeer" to "Beer",
+        "subBottledWater" to "Bottled Water",
+        "subBrandy" to "Brandy",
+        "subBread" to "Bread",
+        "subButter" to "Butter",
+        "subCandies" to "Candies",
+        "subCheese" to "Cheese",
+        "subChilledMeats" to "Chilled Meats",
+        "subChips" to "Chips",
+        "subChocolateDrink" to "Chocolate Drink",
+        "subChocolates" to "Chocolates",
+        "subCigarettes" to "Cigarettes",
+        "subCleaners" to "Cleaners",
+        "subCoffeeMix" to "Coffee Mix",
+        "subCookingOil" to "Cooking Oil",
+        "subCornedBeef" to "Corned Beef",
+        "subCosmetics" to "Cosmetics",
+        "subCupNoodles" to "Cup Noodles",
+        "subDiapers" to "Diapers",
+        "subDishwashing" to "Dishwashing Liquid",
+        "subEggs" to "Eggs",
+        "subFabricSoftener" to "Fabric Softener",
+        "subFreshMeat" to "Fresh Meat",
+        "subFreshSeafood" to "Fresh Seafood",
+        "subFruits" to "Fruits",
+        "subGin" to "Gin",
+        "subInstantNoodles" to "Instant Noodles",
+        "subJuice" to "Juice",
+        "subLaundry" to "Laundry Detergent",
+        "subMargarine" to "Margarine",
+        "subMeatLoaf" to "Meat Loaf",
+        "subMosquitoControl" to "Mosquito Control",
+        "subPaperTowels" to "Paper Towels",
+        "subPasta" to "Pasta",
+        "subPowderedMilk" to "Powdered Milk",
+        "subRice" to "Rice",
+        "subSalt" to "Salt",
+        "subSanitaryPads" to "Sanitary Pads",
+        "subSausage" to "Sausage",
+        "subSoftDrinks" to "Soft Drinks",
+        "subSoupMixes" to "Soup Mixes",
+        "subSugar" to "Sugar",
+        "subTissue" to "Tissue",
+        "subTrashBags" to "Trash Bags",
+        "subTuna" to "Tuna",
+        "subVegetables" to "Vegetables",
+        "subVinegar" to "Vinegar",
+        "subWine" to "Wine",
+        "subcategoriesLabel" to "Subcategories",
 
         // ── Automatic Backup (V3.0) ──
         "backup_section_title" to "Automatic Backup",
@@ -134,6 +289,7 @@ object Strings {
         "sold" to "Sold",
         "stockUpdated" to "Stock updated.",
         "stockAdded" to "Stock added.",
+        "searchPlaceholder" to "Search products...",
         "searchItems" to "Search items...",
         "edit" to "Edit",
         "restock" to "Restock",
@@ -308,7 +464,7 @@ object Strings {
         "tutorial8" to "At the end of the day, the Closing screen shows a full summary of today's performance.",
         "tutorial9" to "Enter your actual cash earnings for the day. The app calculates your profit automatically.",
         "tutorial10" to "Tap 'Day Complete' when you're ready to finalize. Your daily summary will be saved to history.",
-        "tutorial11" to "The Inventory page lets you search, add, and manage all your stock items in one place.",
+        "tutorial11" to "The Inventory page lets you add and manage all your stock items in one place.",
         "tutorial12" to "Tap 'Add Stock' to add new products or restock existing items with cost and selling price.",
         "tutorial13" to "The Debts page tracks all customer debts. The total outstanding amount is shown at the top.",
         "tutorial14" to "Visit Settings anytime to change language, text size, store name, or owner name. Tap section headers to expand settings.",
@@ -670,7 +826,7 @@ object Strings {
 
         // Stock Tutorial
         "stockTutorial1" to "This is the Stocks page where you manage all your inventory items.",
-        "stockTutorial2" to "Use the Search bar to quickly find any item by typing its name.",
+        "stockTutorial2" to "Use the category chips to filter the list. Tap the \"All\" chip to show every item.",
         "stockTutorial3" to "Tap \"Add Stock\" to add new products or restock existing ones. Fill in the name, quantity, cost per unit, and selling price. You can set a markup percentage to auto-calculate the selling price.",
         "stockTutorial4" to "Items running low appear in the \"Running Low\" section at the top, showing remaining quantity and a quick \"Add Stock\" button.",
         "stockTutorial5" to "All your inventory is listed below with color-coded borders: green = plenty, orange = getting low, red = out of stock.",
@@ -867,6 +1023,8 @@ object Strings {
         "forecastHowItWorks" to "Avg from 7 days → daysUntilOut = stock ÷ avg.",
         "forecastSuggestedRestock" to "Suggest +{n}",
         "forecastFor7Days" to "for 7 days",
+        "forecastSortToggle" to "\ud83d\udd2e Sort by Forecast",
+        "forecastSortOff" to "Sort by forecast",
     )
 
     val fil: Map<String, String> = mapOf(
@@ -909,6 +1067,160 @@ object Strings {
         "catMosquito" to "Katol",
         "catCigarettes" to "Sigarilyo",
         "catOther" to "Iba pa",
+        "catPantryStaples" to "Pangunahing Pangangailangan",
+        "catCannedGoods" to "De-Lata",
+        "catInstantDryGoods" to "Instant at Dry Goods",
+        "catSnacksSweets" to "Meryenda at Matamis",
+        "catBeverages" to "Mga Inumin",
+        "catDairyRefrigerated" to "Gatas at Palamig",
+        "catFreshSection" to "Sariwang Seksyon",
+        "catLiquorWine" to "Alak at Wine",
+        "catPersonalCare" to "Pangangalaga sa Katawan",
+        "catHouseholdCare" to "Pangangalaga sa Bahay",
+        "catBabyCare" to "Pangangalaga sa Sanggol",
+        "catPaperSanitary" to "Papel at Sanitary",
+        "subcategoriesLabel" to "Mga Subcategory",
+        "searchPlaceholder" to "Maghanap...",
+        // ── Subcategories — mirror EN keys so productSubcategoryLabel() never falls back to raw id
+        "subCola" to "Cola",
+        "subCitrus" to "Citrus",
+        "subOrange" to "Orange",
+        "subIcedTea" to "Iced Tea",
+        "subEnergy" to "Energy Drink",
+        "subPurified" to "Purified",
+        "subMineral" to "Mineral",
+        "subDistilled" to "Distilled",
+        "subSparkling" to "Sparkling",
+        "sub3in1" to "3-in-1",
+        "subBlack" to "Black",
+        "subBrown" to "Brown",
+        "subWhiteCoffee" to "White Coffee",
+        "subChicken" to "Chicken",
+        "subBeef" to "Beef",
+        "subSeafood" to "Seafood",
+        "subSpicy" to "Spicy",
+        "subPancitCanton" to "Pancit Canton",
+        "subWhiteRice" to "White Rice",
+        "subBrownRice" to "Brown Rice",
+        "subJasmine" to "Jasmine",
+        "subSinandomeng" to "Sinandomeng",
+        "subDinorado" to "Dinorado",
+        "subSardines" to "Sardines",
+        "subMackerel" to "Mackerel",
+        "subTomato" to "Tomato Sauce",
+        "subSpicySardines" to "Spicy Sardines",
+        "subFlakesInOil" to "Flakes in Oil",
+        "subFlakesInWater" to "Flakes in Water",
+        "subChunks" to "Chunks",
+        "subSpicyTuna" to "Spicy Tuna",
+        "subChickenEgg" to "Chicken Egg",
+        "subDuckEgg" to "Duck Egg",
+        "subQuailEgg" to "Quail Egg",
+        "subSaltedEgg" to "Salted Egg",
+        "subBrownEgg" to "Brown Egg",
+        "subPandesal" to "Pandesal",
+        "subLoaf" to "Loaf",
+        "subTasty" to "Tasty",
+        "subMonay" to "Monay",
+        "subEnsaymada" to "Ensaymada",
+        "subCreamFilled" to "Cream Filled",
+        "subCrackers" to "Crackers",
+        "subWafers" to "Wafers",
+        "subCookies" to "Cookies",
+        "subMilkChocolate" to "Milk Chocolate",
+        "subDark" to "Dark Chocolate",
+        "subCandy" to "Candy",
+        "subGum" to "Chewing Gum",
+        "subLollipop" to "Lollipop",
+        "subPotato" to "Potato",
+        "subCorn" to "Corn",
+        "subPrawn" to "Prawn Crackers",
+        "subExtruded" to "Extruded",
+        "subMixed" to "Mixed",
+        "subIodized" to "Iodized",
+        "subRock" to "Rock Salt",
+        "subSea" to "Sea Salt",
+        "subFine" to "Fine Salt",
+        "subWhiteSugar" to "White Sugar",
+        "subBrownSugar" to "Brown Sugar",
+        "subWashed" to "Washed Sugar",
+        "subMuscovado" to "Muscovado",
+        "subShampoo" to "Shampoo",
+        "subConditioner" to "Conditioner",
+        "subTwoInOne" to "2-in-1",
+        "subTreatment" to "Treatment",
+        "subBeautyBar" to "Beauty Bar",
+        "subAntibacterial" to "Antibacterial",
+        "subPapaya" to "Papaya",
+        "subKojic" to "Kojic",
+        "subHerbal" to "Herbal",
+        "subPowder" to "Powder",
+        "subBarSoap" to "Bar Soap",
+        "subLiquid" to "Liquid",
+        "subFabricConditioner" to "Fabric Conditioner",
+        "subToothpaste" to "Toothpaste",
+        "subToothbrush" to "Toothbrush",
+        "subMouthwash" to "Mouthwash",
+        "subCoil" to "Coil",
+        "subSpray" to "Spray",
+        "subLotion" to "Lotion",
+        "subVaporizer" to "Vaporizer",
+        "subLights" to "Lights",
+        "subMenthol" to "Menthol",
+        "subRegular" to "Regular",
+        "subKretek" to "Kretek",
+        "subBabyToiletries" to "Pampaganda ng Sanggol",
+        "subBabyWipes" to "Pamunas ng Sanggol",
+        "subBathSoap" to "Sabon Pampaligo",
+        "subBeer" to "Beer",
+        "subBottledWater" to "Tubig De-Bote",
+        "subBrandy" to "Brandy",
+        "subBread" to "Tinapay",
+        "subButter" to "Mantikilya",
+        "subCandies" to "Kendi",
+        "subCheese" to "Keso",
+        "subChilledMeats" to "Malamig na Karne",
+        "subChips" to "Chips",
+        "subChocolateDrink" to "Inuming Tsokolate",
+        "subChocolates" to "Tsokolate",
+        "subCigarettes" to "Sigarilyo",
+        "subCleaners" to "Panlinis",
+        "subCoffeeMix" to "Kape Mix",
+        "subCookingOil" to "Mantika",
+        "subCornedBeef" to "Corned Beef",
+        "subCosmetics" to "Kosmetiko",
+        "subCupNoodles" to "Cup Noodles",
+        "subDiapers" to "Diaper",
+        "subDishwashing" to "Panghugas ng Pinggan",
+        "subEggs" to "Itlog",
+        "subFabricSoftener" to "Pampalambot ng Damit",
+        "subFreshMeat" to "Sariwang Karne",
+        "subFreshSeafood" to "Sariwang Pagkaing-Dagat",
+        "subFruits" to "Prutas",
+        "subGin" to "Gin",
+        "subInstantNoodles" to "Instant Noodles",
+        "subJuice" to "Katas",
+        "subLaundry" to "Detergent Panglaba",
+        "subMargarine" to "Margarina",
+        "subMeatLoaf" to "Meat Loaf",
+        "subMosquitoControl" to "Kontrol sa Lamok",
+        "subPaperTowels" to "Papel Tuwalya",
+        "subPasta" to "Pasta",
+        "subPowderedMilk" to "Gatas na Pulbos",
+        "subRice" to "Bigas",
+        "subSalt" to "Asin",
+        "subSanitaryPads" to "Sanitary Pads",
+        "subSausage" to "Longganisa",
+        "subSoftDrinks" to "Softdrinks",
+        "subSoupMixes" to "Soup Mix",
+        "subSugar" to "Asukal",
+        "subTissue" to "Tissue",
+        "subTrashBags" to "Plastic na Basurahan",
+        "subTuna" to "Tuna",
+        "subVegetables" to "Gulay",
+        "subVinegar" to "Suka",
+        "subWine" to "Wine",
+        "subcategoriesLabel" to "Mga Subcategory",
         "unitPiece" to "piraso",
         "unitSachet" to "sachet",
         "unitPack" to "pack",
@@ -982,6 +1294,7 @@ object Strings {
         "sold" to "Nabenta",
         "stockUpdated" to "Na-update ang stock.",
         "stockAdded" to "Naidagdag ang stock.",
+        "searchPlaceholder" to "Maghanap ng produkto...",
         "searchItems" to "Maghanap ng item...",
         "edit" to "Baguhin",
         "restock" to "Mag-restock",
@@ -1156,7 +1469,7 @@ object Strings {
         "tutorial8" to "Sa pagtatapos ng araw, ang Closing screen ay nagpapakita ng buong summary ng performance ngayong araw.",
         "tutorial9" to "Ilagay ang iyong aktwal na kinita ngayon. Awtomatikong kukuwentahin ng app ang iyong kita.",
         "tutorial10" to "I-tap ang 'Tapos Na ang Araw' para tapusin. Ang iyong daily summary ay mase-save sa history.",
-        "tutorial11" to "Ang Inventory page ay nagbibigay-daan sa iyo na maghanap, magdagdag, at mamahala ng stock.",
+        "tutorial11" to "Ang Inventory page ay nagbibigay-daan sa iyo na magdagdag at mamahala ng stock.",
         "tutorial12" to "I-tap ang 'Magdagdag ng Stock' para magdagdag ng bagong produkto o mag-restock.",
         "tutorial13" to "Ang Debts page ay sumusubaybay sa lahat ng utang ng kostumer. Ang kabuuang halaga ay nasa itaas.",
         "tutorial14" to "Pumunta sa Settings anumang oras para baguhin ang wika, laki ng teksto, o pangalan ng tindahan. I-tap ang mga section header para buksan ang settings.",
@@ -1527,7 +1840,7 @@ object Strings {
 
         // Stock Tutorial
         "stockTutorial1" to "Ito ang Stocks page kung saan mo pinamamahalaan ang lahat ng iyong inventory item.",
-        "stockTutorial2" to "Gamitin ang Search bar para mabilis na makahanap ng item sa pamamagitan ng pag-type ng pangalan nito.",
+        "stockTutorial2" to "Gamitin ang category chips para i-filter ang listahan. I-tap ang \"All\" chip para ipakita ang lahat.",
         "stockTutorial3" to "I-tap ang \"Add Stock\" para magdagdag ng bagong produkto o mag-restock ng existing item na may detalye tulad ng pangalan, dami, halaga, at presyo.",
         "stockTutorial4" to "Ang mga item na nauubos ay lilitaw sa \"Kulang Na\" section sa itaas, na may natitirang dami at mabilis na \"Add Stock\" button.",
         "stockTutorial5" to "Ang lahat ng iyong inventory ay nakalista sa ibaba na may color-coded na border: green = marami pa, orange = medyo kulang, red = wala na.",
@@ -1669,6 +1982,9 @@ object Strings {
         "restockStartBtn" to "Simulan ang Restock",
         "restockNoHistory" to "Wala pang restock history.",
         "restockLogCount" to "{n} restock(s) naitala",
+        // -- Forecast (Level 1 Offline ML) --
+        "forecastSortToggle" to "\ud83d\udd2e Ayon sa Forecast",
+        "forecastSortOff" to "Ayon sa forecast",
         "tutProductDetail" to "Product Detail na Tutorial",
         "productDetailTutorial1" to "Ang page na ito ay nagpapakita ng lahat tungkol sa produkto: pangalan, unit, stock quantity, presyo ng stock, presyo ng benta, at profit margin.",
         "productDetailTutorial2" to "May color-coded na alert kapag mababa na o ubos na ang stock.",
@@ -1698,27 +2014,166 @@ object Strings {
      *  Unknown/empty keys resolve to the "Other" label. */
     fun productCategoryLabel(key: String, lang: String): String {
         val i18nKey = when (key) {
-            "soft_drinks" -> "catSoftDrinks"
-            "bottled_water" -> "catBottledWater"
-            "instant_coffee" -> "catInstantCoffee"
-            "instant_noodles" -> "catInstantNoodles"
-            "rice" -> "catRice"
-            "canned_sardines" -> "catCannedSardines"
-            "canned_tuna" -> "catCannedTuna"
-            "eggs" -> "catEggs"
-            "bread" -> "catBread"
-            "biscuits" -> "catBiscuits"
-            "chocolate" -> "catChocolate"
-            "chips" -> "catChips"
-            "salt" -> "catSalt"
-            "sugar" -> "catSugar"
-            "shampoo" -> "catShampoo"
-            "bath_soap" -> "catBathSoap"
-            "laundry" -> "catLaundry"
-            "toothcare" -> "catToothcare"
-            "mosquito" -> "catMosquito"
-            "cigarettes" -> "catCigarettes"
+            "pantry_staples" -> "catPantryStaples"
+            "canned_goods" -> "catCannedGoods"
+            "instant_dry_goods" -> "catInstantDryGoods"
+            "snacks_sweets" -> "catSnacksSweets"
+            "beverages" -> "catBeverages"
+            "dairy_refrigerated" -> "catDairyRefrigerated"
+            "fresh_section" -> "catFreshSection"
+            "liquor_wine" -> "catLiquorWine"
+            "personal_care" -> "catPersonalCare"
+            "household_care" -> "catHouseholdCare"
+            "baby_care" -> "catBabyCare"
+            "paper_sanitary" -> "catPaperSanitary"
             else -> "catOther"
+        }
+        return i18nKey.t(lang)
+    }
+
+    /** Localized label for a subcategory key (index.html Section 2B parity).
+     *  Falls back to a title-cased raw key when no i18n entry exists. */
+    fun productSubcategoryLabel(key: String, lang: String): String {
+        val i18nKey = when (key) {
+            "cola" -> "subCola"
+            "citrus" -> "subCitrus"
+            "orange" -> "subOrange"
+            "iced_tea" -> "subIcedTea"
+            "energy" -> "subEnergy"
+            "purified" -> "subPurified"
+            "mineral" -> "subMineral"
+            "distilled" -> "subDistilled"
+            "sparkling" -> "subSparkling"
+            "3in1" -> "sub3in1"
+            "black" -> "subBlack"
+            "brown" -> "subBrown"
+            "white_coffee" -> "subWhiteCoffee"
+            "chicken" -> "subChicken"
+            "beef" -> "subBeef"
+            "seafood" -> "subSeafood"
+            "spicy" -> "subSpicy"
+            "pancit_canton" -> "subPancitCanton"
+            "white_rice" -> "subWhiteRice"
+            "brown_rice" -> "subBrownRice"
+            "jasmine" -> "subJasmine"
+            "sinandomeng" -> "subSinandomeng"
+            "dinorado" -> "subDinorado"
+            "sardines" -> "subSardines"
+            "mackerel" -> "subMackerel"
+            "tomato" -> "subTomato"
+            "spicy_sardines" -> "subSpicySardines"
+            "flakes_in_oil" -> "subFlakesInOil"
+            "flakes_in_water" -> "subFlakesInWater"
+            "chunks" -> "subChunks"
+            "spicy_tuna" -> "subSpicyTuna"
+            "chicken_egg" -> "subChickenEgg"
+            "duck_egg" -> "subDuckEgg"
+            "quail_egg" -> "subQuailEgg"
+            "salted_egg" -> "subSaltedEgg"
+            "brown_egg" -> "subBrownEgg"
+            "pandesal" -> "subPandesal"
+            "loaf" -> "subLoaf"
+            "tasty" -> "subTasty"
+            "monay" -> "subMonay"
+            "ensaymada" -> "subEnsaymada"
+            "cream_filled" -> "subCreamFilled"
+            "crackers" -> "subCrackers"
+            "wafers" -> "subWafers"
+            "cookies" -> "subCookies"
+            "milk_chocolate" -> "subMilkChocolate"
+            "dark" -> "subDark"
+            "candy" -> "subCandy"
+            "gum" -> "subGum"
+            "lollipop" -> "subLollipop"
+            "potato" -> "subPotato"
+            "corn" -> "subCorn"
+            "prawn" -> "subPrawn"
+            "extruded" -> "subExtruded"
+            "mixed" -> "subMixed"
+            "iodized" -> "subIodized"
+            "rock" -> "subRock"
+            "sea" -> "subSea"
+            "fine" -> "subFine"
+            "white_sugar" -> "subWhiteSugar"
+            "brown" -> "subBrownSugar"
+            "washed" -> "subWashed"
+            "muscovado" -> "subMuscovado"
+            "shampoo" -> "subShampoo"
+            "conditioner" -> "subConditioner"
+            "two_in_one" -> "subTwoInOne"
+            "treatment" -> "subTreatment"
+            "beauty_bar" -> "subBeautyBar"
+            "antibacterial" -> "subAntibacterial"
+            "papaya" -> "subPapaya"
+            "kojic" -> "subKojic"
+            "herbal" -> "subHerbal"
+            "powder" -> "subPowder"
+            "bar_soap" -> "subBarSoap"
+            "liquid" -> "subLiquid"
+            "fabric_conditioner" -> "subFabricConditioner"
+            "toothpaste" -> "subToothpaste"
+            "toothbrush" -> "subToothbrush"
+            "mouthwash" -> "subMouthwash"
+            "coil" -> "subCoil"
+            "spray" -> "subSpray"
+            "lotion" -> "subLotion"
+            "vaporizer" -> "subVaporizer"
+            "lights" -> "subLights"
+            "menthol" -> "subMenthol"
+            "regular" -> "subRegular"
+            "kretek" -> "subKretek"
+            "baby_toiletries" -> "subBabyToiletries"
+            "baby_wipes" -> "subBabyWipes"
+            "bath_soap" -> "subBathSoap"
+            "beer" -> "subBeer"
+            "bottled_water" -> "subBottledWater"
+            "brandy" -> "subBrandy"
+            "bread" -> "subBread"
+            "butter" -> "subButter"
+            "candies" -> "subCandies"
+            "cheese" -> "subCheese"
+            "chilled_meats" -> "subChilledMeats"
+            "chips" -> "subChips"
+            "chocolate_drink" -> "subChocolateDrink"
+            "chocolates" -> "subChocolates"
+            "cigarettes" -> "subCigarettes"
+            "cleaners" -> "subCleaners"
+            "coffee_mix" -> "subCoffeeMix"
+            "cooking_oil" -> "subCookingOil"
+            "corned_beef" -> "subCornedBeef"
+            "cosmetics" -> "subCosmetics"
+            "cup_noodles" -> "subCupNoodles"
+            "diapers" -> "subDiapers"
+            "dishwashing" -> "subDishwashing"
+            "eggs" -> "subEggs"
+            "fabric_softener" -> "subFabricSoftener"
+            "fresh_meat" -> "subFreshMeat"
+            "fresh_seafood" -> "subFreshSeafood"
+            "fruits" -> "subFruits"
+            "gin" -> "subGin"
+            "instant_noodles" -> "subInstantNoodles"
+            "juice" -> "subJuice"
+            "laundry" -> "subLaundry"
+            "margarine" -> "subMargarine"
+            "meat_loaf" -> "subMeatLoaf"
+            "mosquito_control" -> "subMosquitoControl"
+            "paper_towels" -> "subPaperTowels"
+            "pasta" -> "subPasta"
+            "powdered_milk" -> "subPowderedMilk"
+            "rice" -> "subRice"
+            "salt" -> "subSalt"
+            "sanitary_pads" -> "subSanitaryPads"
+            "sausage" -> "subSausage"
+            "soft_drinks" -> "subSoftDrinks"
+            "soup_mixes" -> "subSoupMixes"
+            "sugar" -> "subSugar"
+            "tissue" -> "subTissue"
+            "trash_bags" -> "subTrashBags"
+            "tuna" -> "subTuna"
+            "vegetables" -> "subVegetables"
+            "vinegar" -> "subVinegar"
+            "wine" -> "subWine"
+            else -> return key.replace('_', ' ').replaceFirstChar { it.titlecase() }
         }
         return i18nKey.t(lang)
     }

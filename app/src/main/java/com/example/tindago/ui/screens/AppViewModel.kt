@@ -527,15 +527,16 @@ class AppViewModel : ViewModel() {
 
         // Phase 1: Load initial data (one-shot)
         viewModelScope.launch {
-            val loaded = doInitialLoad(repo)
-            if (!loaded) {
-                seedSampleData()
-                persistAllToRepo(repo)
-            } else if (_products.value.size <= 17) {
-                // Migrate from old 17-item dataset to new 120-item dataset.
+            doInitialLoad(repo)
+            if (_products.value.isEmpty()) {
+                // No persisted products (fresh install or cleared inventory) →
+                // auto-seed the full 225-item product catalog (web v2.59+ parity),
+                // then persist so the seed survives app restarts.
                 seedSampleData()
                 persistAllToRepo(repo)
             }
+            // Legacy stores (old 17-/120-item sample datasets) are left as-is;
+            // the sample-product backfill was removed together with the dataset.
             // Stale open days are no longer auto-archived here — they are
             // surfaced on the Morning page (overdue banner, web v2.35 parity).
         }
@@ -700,6 +701,7 @@ class AppViewModel : ViewModel() {
         sellingPrice: Double,
         lowStockThreshold: Int = 5,
         category: String = "",
+        subcategory: String = "",
         brand: String = "",
         unit: String = "piece",
         packageSize: String = ""
@@ -714,6 +716,7 @@ class AppViewModel : ViewModel() {
                 sellingPrice = sellingPrice,
                 lowStockThreshold = lowStockThreshold,
                 category = category,
+                subcategory = subcategory,
                 brand = brand,
                 unit = unit,
                 packageSize = packageSize
@@ -725,7 +728,7 @@ class AppViewModel : ViewModel() {
             val newProduct = Product(
                 _productIdCounter, name, qty, costPrice, sellingPrice,
                 unit = unit, lowStockThreshold = lowStockThreshold,
-                category = category, brand = brand, packageSize = packageSize
+                category = category, subcategory = subcategory, brand = brand, packageSize = packageSize
             )
             _products.value = _products.value + newProduct
             newProduct
@@ -750,6 +753,11 @@ class AppViewModel : ViewModel() {
                     append(' ').append(p.category.lowercase())
                     append(' ').append(com.example.tindago.ui.localization.Strings.productCategoryLabel(p.category, "en").lowercase())
                     append(' ').append(com.example.tindago.ui.localization.Strings.productCategoryLabel(p.category, "fil").lowercase())
+                }
+                if (p.subcategory.isNotBlank()) {
+                    append(' ').append(p.subcategory.lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productSubcategoryLabel(p.subcategory, "en").lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productSubcategoryLabel(p.subcategory, "fil").lowercase())
                 }
                 if (p.brand.isNotBlank()) append(' ').append(p.brand.lowercase())
                 if (p.unit.isNotBlank()) {
@@ -780,6 +788,98 @@ class AppViewModel : ViewModel() {
     fun getProductsByCategory(category: String): List<Product> {
         if (category.isBlank()) return _products.value
         return _products.value.filter { it.category == category }
+    }
+
+    /** index.html Section 2B parity — filter by subcategory within a category. */
+    fun getProductsBySubcategory(subcategory: String): List<Product> {
+        if (subcategory.isBlank()) return _products.value
+        return _products.value.filter { it.subcategory == subcategory }
+    }
+
+    /** Two-level drill-down filter (web v2.59 renderManageInventory parity for the
+     *  225-item two-level taxonomy). `subcategory` is expected to belong to
+     *  [category]; a non-blank subcategory wins and an inconsistent (category,
+     *  subcategory) pair naturally yields nothing. Blank subcategory → filter by
+     *  category only; blank both → all products ('' = uncategorized never
+     *  matches a non-blank category). */
+    fun getProductsBySubcategory(category: String, subcategory: String): List<Product> {
+        val byCategory = if (category.isBlank()) _products.value
+                         else _products.value.filter { it.category == category }
+        if (subcategory.isBlank()) return byCategory
+        return byCategory.filter { it.subcategory == subcategory }
+    }
+
+    /** index.html Section 2B parity — drill-down filter for Checkout suggestions.
+     *  `subcategory` wins over `category`; blank both = no category filter.
+     *  Combined with the text search so `filteredProducts = search ∩ (subcategory ?: category)`. */
+    fun getCheckoutFilteredProducts(query: String, category: String, subcategory: String): List<Product> {
+        val byCategory = when {
+            subcategory.isNotBlank() -> _products.value.filter { it.subcategory == subcategory }
+            category.isNotBlank() -> _products.value.filter { it.category == category }
+            else -> _products.value
+        }
+        if (query.isBlank()) return byCategory
+        return byCategory.filter { p ->
+            val hay = buildString {
+                append(p.name.lowercase())
+                if (p.category.isNotBlank()) {
+                    append(' ').append(p.category.lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productCategoryLabel(p.category, "en").lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productCategoryLabel(p.category, "fil").lowercase())
+                }
+                if (p.subcategory.isNotBlank()) {
+                    append(' ').append(p.subcategory.lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productSubcategoryLabel(p.subcategory, "en").lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productSubcategoryLabel(p.subcategory, "fil").lowercase())
+                }
+                if (p.brand.isNotBlank()) append(' ').append(p.brand.lowercase())
+                if (p.unit.isNotBlank()) {
+                    append(' ').append(p.unit.lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productUnitLabel(p.unit, "en").lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productUnitLabel(p.unit, "fil").lowercase())
+                }
+                if (p.packageSize.isNotBlank()) append(' ').append(p.packageSize.lowercase())
+            }
+            hay.contains(query.lowercase())
+        }
+    }
+
+    /** Inventory (Stocks) page parity — combined text + two-level drill-down
+     *  filter for the stock-inventory list (web renderManageInventory parity).
+     *  Semantically identical to [getCheckoutFilteredProducts] but named for the
+     *  inventory screen so StocksScreen doesn't borrow the checkout-branded API.
+     *  `subcategory` wins over `category`; blank both = no category filter.
+     *  Result = search ∩ (subcategory ?: category). */
+    fun getInventoryFilteredProducts(query: String, category: String, subcategory: String): List<Product> {
+        val byCategory = when {
+            subcategory.isNotBlank() -> _products.value.filter { it.subcategory == subcategory }
+            category.isNotBlank() -> _products.value.filter { it.category == category }
+            else -> _products.value
+        }
+        if (query.isBlank()) return byCategory
+        return byCategory.filter { p ->
+            val hay = buildString {
+                append(p.name.lowercase())
+                if (p.category.isNotBlank()) {
+                    append(' ').append(p.category.lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productCategoryLabel(p.category, "en").lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productCategoryLabel(p.category, "fil").lowercase())
+                }
+                if (p.subcategory.isNotBlank()) {
+                    append(' ').append(p.subcategory.lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productSubcategoryLabel(p.subcategory, "en").lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productSubcategoryLabel(p.subcategory, "fil").lowercase())
+                }
+                if (p.brand.isNotBlank()) append(' ').append(p.brand.lowercase())
+                if (p.unit.isNotBlank()) {
+                    append(' ').append(p.unit.lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productUnitLabel(p.unit, "en").lowercase())
+                    append(' ').append(com.example.tindago.ui.localization.Strings.productUnitLabel(p.unit, "fil").lowercase())
+                }
+                if (p.packageSize.isNotBlank()) append(' ').append(p.packageSize.lowercase())
+            }
+            hay.contains(query.lowercase())
+        }
     }
 
     fun getFilteredProducts(filter: String): List<Product> {
@@ -1369,163 +1469,6 @@ class AppViewModel : ViewModel() {
         return BusinessTip(tip, 6)
     }
 
-    // ── Seed demo data ──────────────────────────────────────────────────
-    /** 120-item sari-sari store inventory matching the web prototype's
-     *  getSampleProducts(). All 20 categories covered, realistic Filipino
-     *  brands, and stock variety (out-of-stock / low / plenty) for demos.
-     *  Only products are seeded — no fake sales, debts, payments, or
-     *  daily entries (web parity: a clean slate). */
-    fun seedSampleData() {
-        fun p(id: Int, name: String, cat: String, brand: String, unit: String, pkg: String, qty: Int, cost: Double, sell: Double, threshold: Int? = null) =
-            Product(
-                id = id, name = name, quantity = qty, costPrice = cost, sellingPrice = sell,
-                unit = unit, lowStockThreshold = threshold ?: 5,
-                category = cat, brand = brand, packageSize = pkg
-            )
-        _products.value = listOf(
-            // ── Soft Drinks (6) ──
-            p(1, "Coca-Cola Original Taste", "soft_drinks", "Coca-Cola", "bottle", "290ml", 20, 18.0, 22.5, 6),
-            p(2, "Pepsi", "soft_drinks", "Pepsi", "bottle", "330ml", 20, 18.0, 22.5, 6),
-            p(3, "Royal Tru-Orange", "soft_drinks", "Royal", "bottle", "330ml", 0, 18.0, 22.5, 6),
-            p(4, "Sprite", "soft_drinks", "Sprite", "bottle", "330ml", 20, 18.0, 22.5, 6),
-            p(5, "Mountain Dew", "soft_drinks", "Mountain Dew", "bottle", "330ml", 20, 18.0, 22.5, 6),
-            p(6, "RC Cola", "soft_drinks", "RC Cola", "bottle", "330ml", 3, 15.0, 18.75, 6),
-            // ── Bottled Water (6) ──
-            p(7, "Wilkins Pure", "bottled_water", "Wilkins", "bottle", "500ml", 20, 10.0, 13.0, 6),
-            p(8, "Absolute Purified Water", "bottled_water", "Absolute", "bottle", "500ml", 20, 10.0, 13.0, 6),
-            p(9, "Nature\u2019s Spring", "bottled_water", "Nature\u2019s Spring", "bottle", "500ml", 20, 9.0, 11.7, 6),
-            p(10, "Summit Water", "bottled_water", "Summit", "bottle", "500ml", 0, 10.0, 13.0, 6),
-            p(11, "Viva Mineral Water", "bottled_water", "Viva", "bottle", "500ml", 4, 9.0, 11.7, 6),
-            p(12, "Aquabest Purified Water", "bottled_water", "Aquabest", "bottle", "500ml", 20, 8.0, 10.4, 6),
-            // ── Instant Coffee (6) ──
-            p(13, "Nescaf\u00e9 Classic", "instant_coffee", "Nescaf\u00e9", "sachet", "25g", 20, 9.0, 11.7, 6),
-            p(14, "Great Taste 3-in-1", "instant_coffee", "Great Taste", "sachet", "25g", 20, 8.0, 10.4, 6),
-            p(15, "Kopiko Brown Coffee", "instant_coffee", "Kopiko", "sachet", "25g", 20, 8.0, 10.4, 6),
-            p(16, "San Mig Coffee 3-in-1", "instant_coffee", "San Mig Coffee", "sachet", "20g", 3, 7.0, 9.1, 6),
-            p(17, "Caf\u00e9 Puro", "instant_coffee", "Caf\u00e9 Puro", "sachet", "25g", 20, 8.0, 10.4, 6),
-            p(18, "UCC 3-in-1 Coffee", "instant_coffee", "UCC", "sachet", "20g", 20, 10.0, 13.0, 6),
-            // ── Instant Noodles (6) ──
-            p(19, "Lucky Me! Pancit Canton Original", "instant_noodles", "Lucky Me!", "pack", "60g", 20, 11.0, 13.75, 6),
-            p(20, "Payless Pancit Canton", "instant_noodles", "Payless", "pack", "60g", 0, 9.0, 11.25, 6),
-            p(21, "Nissin Ramen", "instant_noodles", "Nissin", "pack", "55g", 20, 10.0, 12.5, 6),
-            p(22, "QuickChow Pancit Canton", "instant_noodles", "QuickChow", "pack", "60g", 20, 9.0, 11.25, 6),
-            p(23, "Ho-Mi Instant Noodles", "instant_noodles", "Ho-Mi", "pack", "55g", 4, 8.0, 10.0, 6),
-            p(24, "Yakisoba Instant Noodles", "instant_noodles", "Yakisoba", "pack", "60g", 20, 11.0, 13.75, 6),
-            // ── Rice (6) ──
-            p(25, "Do\u00f1a Maria Jasponica", "rice", "Do\u00f1a Maria", "sack", "5kg", 20, 360.0, 414.0, 2),
-            p(26, "Dinorado Rice", "rice", "Dinarado", "sack", "5kg", 20, 330.0, 379.5, 2),
-            p(27, "Sinandomeng Rice", "rice", "Sinandomeng", "sack", "5kg", 20, 300.0, 345.0, 2),
-            p(28, "Maharlika Rice", "rice", "Maharlika", "sack", "5kg", 0, 320.0, 368.0, 2),
-            p(29, "Jasmine Rice", "rice", "Jasmine", "sack", "5kg", 1, 350.0, 402.5, 2),
-            p(30, "Jasmate Rice", "rice", "Jasmate", "sack", "5kg", 20, 340.0, 391.0, 2),
-            // ── Canned Sardines (6) ──
-            p(31, "Ligo Sardines in Tomato Sauce", "canned_sardines", "Ligo", "can", "155g", 20, 20.0, 25.0, 4),
-            p(32, "Mega Sardines in Tomato Sauce", "canned_sardines", "Mega", "can", "155g", 20, 20.0, 25.0, 4),
-            p(33, "Young\u2019s Town Sardines", "canned_sardines", "Young\u2019s Town", "can", "155g", 20, 18.0, 22.5, 4),
-            p(34, "555 Sardines", "canned_sardines", "555", "can", "155g", 20, 21.0, 26.25, 4),
-            p(35, "Argentina Sardines", "canned_sardines", "Argentina", "can", "155g", 2, 19.0, 23.75, 4),
-            p(36, "Atami Sardines", "canned_sardines", "Atami", "can", "155g", 20, 18.0, 22.5, 4),
-            // ── Canned Tuna (6) ──
-            p(37, "Century Tuna Flakes", "canned_tuna", "Century Tuna", "can", "180g", 20, 34.0, 42.5, 4),
-            p(38, "555 Tuna Flakes", "canned_tuna", "555", "can", "155g", 20, 28.0, 35.0, 4),
-            p(39, "Mega Tuna Flakes", "canned_tuna", "Mega", "can", "180g", 20, 30.0, 37.5, 4),
-            p(40, "San Marino Tuna Flakes", "canned_tuna", "San Marino", "can", "180g", 0, 29.0, 36.25, 4),
-            p(41, "Ligo Tuna Flakes", "canned_tuna", "Ligo", "can", "180g", 3, 30.0, 37.5, 4),
-            p(42, "Family\u2019s Choice Tuna", "canned_tuna", "Family\u2019s Choice", "can", "180g", 20, 27.0, 33.75, 4),
-            // ── Eggs (6) ──
-            p(43, "Bounty Fresh Chicken Egg", "eggs", "Bounty Fresh", "piece", "Large", 20, 9.0, 10.8, 12),
-            p(44, "Magnolia Chicken Egg", "eggs", "Magnolia", "piece", "Large", 20, 9.5, 11.4, 12),
-            p(45, "Sarimanok Chicken Egg", "eggs", "Sarimanok", "piece", "Large", 8, 8.5, 10.2, 12),
-            p(46, "Local Farm Chicken Egg", "eggs", "Local Farm", "piece", "Medium", 20, 8.0, 9.6, 12),
-            p(47, "Free Range Chicken Egg", "eggs", "Free Range Farm", "piece", "Large", 20, 12.0, 14.4, 12),
-            p(48, "Organic Chicken Egg", "eggs", "Organic Farm", "piece", "Large", 20, 13.0, 15.6, 12),
-            // ── Bread / Pandesal (6) ──
-            p(49, "Gardenia Pinoy Tasty", "bread", "Gardenia", "loaf", "400g", 20, 45.0, 54.0, 4),
-            p(50, "Gardenia Classic White Bread", "bread", "Gardenia", "loaf", "400g", 20, 48.0, 57.6, 4),
-            p(51, "Pinoy Tasty White Bread", "bread", "Pinoy Tasty", "loaf", "450g", 0, 40.0, 48.0, 4),
-            p(52, "Marby White Bread", "bread", "Marby", "loaf", "400g", 2, 38.0, 45.6, 4),
-            p(53, "Julie\u2019s Pandesal", "bread", "Julie\u2019s", "pack", "10pcs", 20, 30.0, 36.0, 4),
-            p(54, "Local Bakery Pandesal", "bread", "Local Bakery", "pack", "10pcs", 20, 25.0, 30.0, 4),
-            // ── Biscuits / Cookies (6) ──
-            p(55, "Fita Crackers", "biscuits", "Fita", "pack", "30g", 20, 8.0, 10.4, 6),
-            p(56, "SkyFlakes Crackers", "biscuits", "SkyFlakes", "pack", "25g", 20, 8.0, 10.4, 6),
-            p(57, "Cream-O Chocolate Sandwich", "biscuits", "Cream-O", "pack", "33g", 20, 9.0, 11.7, 6),
-            p(58, "Oreo Original", "biscuits", "Oreo", "pack", "27g", 3, 10.0, 13.0, 6),
-            p(59, "Marie Biscuits", "biscuits", "Marie", "pack", "30g", 20, 8.0, 10.4, 6),
-            p(60, "Rebisco Crackers", "biscuits", "Rebisco", "pack", "32g", 20, 8.0, 10.4, 6),
-            // ── Chocolate / Candy (6) ──
-            p(61, "Choc-Nut", "chocolate", "Choc-Nut", "piece", "24g", 20, 8.0, 10.4, 8),
-            p(62, "Flat Tops Chocolate", "chocolate", "Flat Tops", "piece", "24g", 20, 7.0, 9.1, 8),
-            p(63, "Cloud 9 Chocolate Bar", "chocolate", "Cloud 9", "piece", "27g", 20, 10.0, 13.0, 8),
-            p(64, "Maxx Candy", "chocolate", "Maxx", "piece", "single", 20, 2.5, 3.5, 15),
-            p(65, "White Rabbit Candy", "chocolate", "White Rabbit", "piece", "single", 20, 3.0, 4.05, 15),
-            p(66, "Kendi Mint Candy", "chocolate", "Kendi Mint", "piece", "single", 0, 2.0, 2.8, 15),
-            // ── Chips / Snacks (6) ──
-            p(67, "Piattos Cheese", "chips", "Piattos", "pack", "85g", 20, 30.0, 37.5, 6),
-            p(68, "Nova Multigrain Snacks", "chips", "Nova", "pack", "78g", 20, 30.0, 37.5, 6),
-            p(69, "Clover Chips Cheese", "chips", "Clover Chips", "pack", "55g", 20, 20.0, 25.0, 6),
-            p(70, "Chippy Barbecue", "chips", "Chippy", "pack", "110g", 20, 25.0, 31.25, 6),
-            p(71, "Oishi Prawn Crackers", "chips", "Oishi", "pack", "60g", 3, 18.0, 22.5, 6),
-            p(72, "Mang Juan Espesyal", "chips", "Mang Juan", "pack", "90g", 20, 25.0, 31.25, 6),
-            // ── Salt (6) ──
-            p(73, "La Filipina Iodized Salt", "salt", "La Filipina", "pack", "500g", 20, 15.0, 19.5, 5),
-            p(74, "Diamond Crystal Salt", "salt", "Diamond Crystal", "pack", "500g", 20, 18.0, 23.4, 5),
-            p(75, "Morton Iodized Salt", "salt", "Morton", "pack", "500g", 20, 22.0, 28.6, 5),
-            p(76, "Local Sea Salt", "salt", "Sea Salt", "pack", "500g", 20, 12.0, 15.6, 5),
-            p(77, "Iodized Salt", "salt", "Iodized Salt", "pack", "500g", 0, 13.0, 16.9, 5),
-            p(78, "Fine Table Salt", "salt", "Fine Salt", "pack", "500g", 20, 12.0, 15.6, 5),
-            // ── Sugar (6) ──
-            p(79, "Victorias Refined Sugar", "sugar", "Victorias", "pack", "1kg", 20, 80.0, 96.0, 5),
-            p(80, "Central Refined Sugar", "sugar", "Central Azucarera", "pack", "1kg", 20, 78.0, 93.6, 5),
-            p(81, "Sweet Crystal Sugar", "sugar", "Sweet Crystal", "pack", "1kg", 20, 75.0, 90.0, 5),
-            p(82, "C&H Sugar", "sugar", "C&H", "pack", "1kg", 0, 95.0, 114.0, 5),
-            p(83, "Domino Sugar", "sugar", "Domino", "pack", "1kg", 2, 90.0, 108.0, 5),
-            p(84, "Brown Sugar", "sugar", "Brown Sugar", "pack", "1kg", 20, 75.0, 90.0, 5),
-            // ── Shampoo Sachets (6) ──
-            p(85, "Sunsilk Shampoo", "shampoo", "Sunsilk", "sachet", "12ml", 20, 7.0, 9.45, 8),
-            p(86, "Cream Silk Conditioner", "shampoo", "Cream Silk", "sachet", "12ml", 20, 7.0, 9.45, 8),
-            p(87, "Pantene Shampoo", "shampoo", "Pantene", "sachet", "12ml", 20, 8.0, 10.8, 8),
-            p(88, "Head & Shoulders Shampoo", "shampoo", "Head & Shoulders", "sachet", "12ml", 20, 8.0, 10.8, 8),
-            p(89, "Palmolive Shampoo", "shampoo", "Palmolive", "sachet", "12ml", 20, 6.5, 8.78, 8),
-            p(90, "Rejoice Shampoo", "shampoo", "Rejoice", "sachet", "12ml", 3, 7.0, 9.45, 8),
-            // ── Bath Soap (6) ──
-            p(91, "Safeguard Classic", "bath_soap", "Safeguard", "bar", "60g", 20, 22.0, 27.5, 6),
-            p(92, "Dove Beauty Bar", "bath_soap", "Dove", "bar", "90g", 20, 45.0, 56.25, 5),
-            p(93, "Palmolive Naturals", "bath_soap", "Palmolive", "bar", "90g", 20, 25.0, 31.25, 6),
-            p(94, "Bioderm Soap", "bath_soap", "Bioderm", "bar", "90g", 0, 20.0, 25.0, 6),
-            p(95, "Silka Papaya Soap", "bath_soap", "Silka", "bar", "65g", 20, 25.0, 31.25, 6),
-            p(96, "Kojic Acid Soap", "bath_soap", "Kojic", "bar", "65g", 4, 25.0, 31.25, 6),
-            // ── Laundry Detergent (6) ──
-            p(97, "Surf Powder Detergent", "laundry", "Surf", "sachet", "40g", 20, 8.0, 10.4, 8),
-            p(98, "Ariel Powder Detergent", "laundry", "Ariel", "sachet", "40g", 20, 9.0, 11.7, 8),
-            p(99, "Tide Powder Detergent", "laundry", "Tide", "sachet", "40g", 20, 9.0, 11.7, 8),
-            p(100, "Champion Powder Detergent", "laundry", "Champion", "sachet", "40g", 20, 7.0, 9.1, 8),
-            p(101, "Pride Powder Detergent", "laundry", "Pride", "sachet", "40g", 0, 7.0, 9.1, 8),
-            p(102, "Breeze Powder Detergent", "laundry", "Breeze", "sachet", "40g", 3, 9.0, 11.7, 8),
-            // ── Toothpaste / Toothbrush (6) ──
-            p(103, "Colgate Toothpaste", "toothcare", "Colgate", "tube", "50g", 20, 45.0, 56.25, 5),
-            p(104, "Closeup Toothpaste", "toothcare", "Closeup", "tube", "50g", 20, 42.0, 52.5, 5),
-            p(105, "Hapee Toothpaste", "toothcare", "Hapee", "tube", "50g", 20, 35.0, 43.75, 5),
-            p(106, "Oral-B Toothbrush", "toothcare", "Oral-B", "piece", "1pc", 20, 35.0, 43.75, 5),
-            p(107, "Pepsodent Toothpaste", "toothcare", "Pepsodent", "tube", "50g", 20, 35.0, 43.75, 5),
-            p(108, "Systema Toothbrush", "toothcare", "Systema", "piece", "1pc", 2, 30.0, 37.5, 5),
-            // ── Mosquito Coils (6) ──
-            p(109, "Katol Mosquito Coil", "mosquito", "Katol", "pack", "10 coils", 20, 22.0, 28.6, 5),
-            p(110, "Baygon Mosquito Coil", "mosquito", "Baygon", "pack", "10 coils", 20, 35.0, 45.5, 5),
-            p(111, "Off! Mosquito Repellent", "mosquito", "Off!", "sachet", "1pc", 20, 12.0, 15.6, 5),
-            p(112, "Raid Mosquito Coil", "mosquito", "Raid", "pack", "10 coils", 20, 30.0, 39.0, 5),
-            p(113, "Lion Tiger Mosquito Coil", "mosquito", "Lion Tiger", "pack", "10 coils", 0, 20.0, 26.0, 5),
-            p(114, "Local Mosquito Coil", "mosquito", "Local Brand", "pack", "10 coils", 4, 18.0, 23.4, 5),
-            // ── Cigarettes (6) ──
-            p(115, "Marlboro Red", "cigarettes", "Marlboro", "pack", "20 sticks", 20, 140.0, 154.0, 5),
-            p(116, "Fortune Red", "cigarettes", "Fortune", "pack", "20 sticks", 20, 120.0, 132.0, 5),
-            p(117, "Winston Red", "cigarettes", "Winston", "pack", "20 sticks", 20, 130.0, 143.0, 5),
-            p(118, "Camel Blue", "cigarettes", "Camel", "pack", "20 sticks", 20, 130.0, 143.0, 5),
-            p(119, "Philip Morris Red", "cigarettes", "Philip Morris", "pack", "20 sticks", 20, 125.0, 137.5, 5),
-            p(120, "Mighty Red", "cigarettes", "Mighty", "pack", "20 sticks", 0, 110.0, 121.0, 5)
-        )
-    }
-
     // ── Dev Panel Actions (Phase 1, adaptation_plan2) ────────────────────
 
     fun getRawStateJson(): JSONObject {
@@ -1537,7 +1480,7 @@ class AppViewModel : ViewModel() {
                     put("sellingPrice", p.sellingPrice); put("unit", p.unit)
                     put("lowStockThreshold", p.lowStockThreshold)
                     // v2.59 parity: identity fields round-trip with the data
-                    put("category", p.category); put("brand", p.brand)
+                    put("category", p.category); put("subcategory", p.subcategory); put("brand", p.brand)
                     put("packageSize", p.packageSize)
                 }
             }))
@@ -1607,6 +1550,7 @@ class AppViewModel : ViewModel() {
                     unit = p.optString("unit", "piece"),
                     lowStockThreshold = p.optInt("lowStockThreshold", 5),
                     category = p.optString("category", ""),
+                    subcategory = p.optString("subcategory", ""),
                     brand = p.optString("brand", ""),
                     packageSize = p.optString("packageSize", "")
                 ))
@@ -1894,9 +1838,7 @@ class AppViewModel : ViewModel() {
     fun generateTestSale() {
         val prods = _products.value
         if (prods.isEmpty()) {
-            // Auto-seed if no products exist
-            seedSampleData()
-            generateTestSale()
+            // Sample-data auto-seed was removed; nothing to test against.
             return
         }
         val rand = java.util.Random()
@@ -1995,8 +1937,7 @@ class AppViewModel : ViewModel() {
         val names = listOf("Aling Nena", "Mang Kanor", "Teresa", "Bong", "Liza", "Rolly", "Elena", "Pedro")
         val categories = ExpenseCatalog.CATEGORIES
 
-        val prods = _products.value
-        if (prods.isEmpty()) seedSampleData()
+        // Sample-data auto-seed was removed; the empty guard below handles it.
         val pList = _products.value
         if (pList.isEmpty()) return "No products available"
 
@@ -2082,6 +2023,253 @@ class AppViewModel : ViewModel() {
         _products.value = newProducts
         return added
     }
+
+    /**
+     * Seeds the full 225-item product catalog (web v2.59+ parity, matches
+     * app.js getSampleProducts). Called automatically on first launch when
+     * inventory is empty, and available as a manual fallback in the Dev Panel.
+     */
+    fun seedSampleData() {
+        _productIdCounter = 225
+        _products.value = listOf(
+            p(1, "Coca-Cola Original Taste", "beverages", "Coca-Cola", "bottle", "290ml", 20, 18, 22.5, 6, "soft_drinks"),
+            p(2, "Pepsi", "beverages", "Pepsi", "bottle", "330ml", 20, 18, 22.5, 6, "soft_drinks"),
+            p(3, "Royal Tru-Orange", "beverages", "Royal", "bottle", "330ml", 0, 18, 22.5, 6, "soft_drinks"),
+            p(4, "Sprite", "beverages", "Sprite", "bottle", "330ml", 20, 18, 22.5, 6, "soft_drinks"),
+            p(5, "Mountain Dew", "beverages", "Mountain Dew", "bottle", "330ml", 20, 18, 22.5, 6, "soft_drinks"),
+            p(6, "RC Cola", "beverages", "RC Cola", "bottle", "330ml", 3, 15, 18.75, 6, "soft_drinks"),
+            p(7, "Wilkins Pure", "beverages", "Wilkins", "bottle", "500ml", 20, 10, 13, 6, "bottled_water"),
+            p(8, "Absolute Purified Water", "beverages", "Absolute", "bottle", "500ml", 20, 10, 13, 6, "bottled_water"),
+            p(9, "Nature’s Spring", "beverages", "Nature’s Spring", "bottle", "500ml", 20, 9, 11.7, 6, "bottled_water"),
+            p(10, "Summit Water", "beverages", "Summit", "bottle", "500ml", 0, 10, 13, 6, "bottled_water"),
+            p(11, "Viva Mineral Water", "beverages", "Viva", "bottle", "500ml", 4, 9, 11.7, 6, "bottled_water"),
+            p(12, "Aquabest Purified Water", "beverages", "Aquabest", "bottle", "500ml", 20, 8, 10.4, 6, "bottled_water"),
+            p(13, "Nescafé Classic", "beverages", "Nescafé", "sachet", "25g", 20, 9, 11.7, 6, "coffee_mix"),
+            p(14, "Great Taste 3-in-1", "beverages", "Great Taste", "sachet", "25g", 20, 8, 10.4, 6, "coffee_mix"),
+            p(15, "Kopiko Brown Coffee", "beverages", "Kopiko", "sachet", "25g", 20, 8, 10.4, 6, "coffee_mix"),
+            p(16, "San Mig Coffee 3-in-1", "beverages", "San Mig Coffee", "sachet", "20g", 3, 7, 9.1, 6, "coffee_mix"),
+            p(17, "Café Puro", "beverages", "Café Puro", "sachet", "25g", 20, 8, 10.4, 6, "coffee_mix"),
+            p(18, "UCC 3-in-1 Coffee", "beverages", "UCC", "sachet", "20g", 20, 10, 13, 6, "coffee_mix"),
+            p(19, "Lucky Me! Pancit Canton Original", "instant_dry_goods", "Lucky Me!", "pack", "60g", 20, 11, 13.75, 6, "instant_noodles"),
+            p(20, "Payless Pancit Canton", "instant_dry_goods", "Payless", "pack", "60g", 0, 9, 11.25, 6, "instant_noodles"),
+            p(21, "Nissin Ramen", "instant_dry_goods", "Nissin", "pack", "55g", 20, 10, 12.5, 6, "instant_noodles"),
+            p(22, "QuickChow Pancit Canton", "instant_dry_goods", "QuickChow", "pack", "60g", 20, 9, 11.25, 6, "instant_noodles"),
+            p(23, "Ho-Mi Instant Noodles", "instant_dry_goods", "Ho-Mi", "pack", "55g", 4, 8, 10, 6, "instant_noodles"),
+            p(24, "Yakisoba Instant Noodles", "instant_dry_goods", "Yakisoba", "pack", "60g", 20, 11, 13.75, 6, "instant_noodles"),
+            p(25, "Doña Maria Jasponica", "pantry_staples", "Doña Maria", "sack", "5kg", 20, 360, 414, 2, "rice"),
+            p(26, "Dinorado Rice", "pantry_staples", "Dinarado", "sack", "5kg", 20, 330, 379.5, 2, "rice"),
+            p(27, "Sinandomeng Rice", "pantry_staples", "Sinandomeng", "sack", "5kg", 20, 300, 345, 2, "rice"),
+            p(28, "Maharlika Rice", "pantry_staples", "Maharlika", "sack", "5kg", 0, 320, 368, 2, "rice"),
+            p(29, "Jasmine Rice", "pantry_staples", "Jasmine", "sack", "5kg", 1, 350, 402.5, 2, "rice"),
+            p(30, "Jasmate Rice", "pantry_staples", "Jasmate", "sack", "5kg", 20, 340, 391, 2, "rice"),
+            p(31, "Ligo Sardines in Tomato Sauce", "canned_goods", "Ligo", "can", "155g", 20, 20, 25, 4, "sardines"),
+            p(32, "Mega Sardines in Tomato Sauce", "canned_goods", "Mega", "can", "155g", 20, 20, 25, 4, "sardines"),
+            p(33, "Young’s Town Sardines", "canned_goods", "Young’s Town", "can", "155g", 20, 18, 22.5, 4, "sardines"),
+            p(34, "555 Sardines", "canned_goods", "555", "can", "155g", 20, 21, 26.25, 4, "sardines"),
+            p(35, "Argentina Sardines", "canned_goods", "Argentina", "can", "155g", 2, 19, 23.75, 4, "sardines"),
+            p(36, "Atami Sardines", "canned_goods", "Atami", "can", "155g", 20, 18, 22.5, 4, "sardines"),
+            p(37, "Century Tuna Flakes", "canned_goods", "Century Tuna", "can", "180g", 20, 34, 42.5, 4, "tuna"),
+            p(38, "555 Tuna Flakes", "canned_goods", "555", "can", "155g", 20, 28, 35, 4, "tuna"),
+            p(39, "Mega Tuna Flakes", "canned_goods", "Mega", "can", "180g", 20, 30, 37.5, 4, "tuna"),
+            p(40, "San Marino Tuna Flakes", "canned_goods", "San Marino", "can", "180g", 0, 29, 36.25, 4, "tuna"),
+            p(41, "Ligo Tuna Flakes", "canned_goods", "Ligo", "can", "180g", 3, 30, 37.5, 4, "tuna"),
+            p(42, "Family’s Choice Tuna", "canned_goods", "Family’s Choice", "can", "180g", 20, 27, 33.75, 4, "tuna"),
+            p(43, "Bounty Fresh Chicken Egg", "fresh_section", "Bounty Fresh", "piece", "Large", 20, 9, 10.8, 12, "eggs"),
+            p(44, "Magnolia Chicken Egg", "fresh_section", "Magnolia", "piece", "Large", 20, 9.5, 11.4, 12, "eggs"),
+            p(45, "Sarimanok Chicken Egg", "fresh_section", "Sarimanok", "piece", "Large", 8, 8.5, 10.2, 12, "eggs"),
+            p(46, "Local Farm Chicken Egg", "fresh_section", "Local Farm", "piece", "Medium", 20, 8, 9.6, 12, "eggs"),
+            p(47, "Free Range Chicken Egg", "fresh_section", "Free Range Farm", "piece", "Large", 20, 12, 14.4, 12, "eggs"),
+            p(48, "Organic Chicken Egg", "fresh_section", "Organic Farm", "piece", "Large", 20, 13, 15.6, 12, "eggs"),
+            p(49, "Gardenia Pinoy Tasty", "pantry_staples", "Gardenia", "loaf", "400g", 20, 45, 54, 4, "bread"),
+            p(50, "Gardenia Classic White Bread", "pantry_staples", "Gardenia", "loaf", "400g", 20, 48, 57.6, 4, "bread"),
+            p(51, "Pinoy Tasty White Bread", "pantry_staples", "Pinoy Tasty", "loaf", "450g", 0, 40, 48, 4, "bread"),
+            p(52, "Marby White Bread", "pantry_staples", "Marby", "loaf", "400g", 2, 38, 45.6, 4, "bread"),
+            p(53, "Julie’s Pandesal", "pantry_staples", "Julie’s", "pack", "10pcs", 20, 30, 36, 4, "bread"),
+            p(54, "Local Bakery Pandesal", "pantry_staples", "Local Bakery", "pack", "10pcs", 20, 25, 30, 4, "bread"),
+            p(55, "Fita Crackers", "snacks_sweets", "Fita", "pack", "30g", 20, 8, 10.4, 6, "crackers"),
+            p(56, "SkyFlakes Crackers", "snacks_sweets", "SkyFlakes", "pack", "25g", 20, 8, 10.4, 6, "crackers"),
+            p(57, "Cream-O Chocolate Sandwich", "snacks_sweets", "Cream-O", "pack", "33g", 20, 9, 11.7, 6, "cookies"),
+            p(58, "Oreo Original", "snacks_sweets", "Oreo", "pack", "27g", 3, 10, 13, 6, "cookies"),
+            p(59, "Marie Biscuits", "snacks_sweets", "Marie", "pack", "30g", 20, 8, 10.4, 6, "crackers"),
+            p(60, "Rebisco Crackers", "snacks_sweets", "Rebisco", "pack", "32g", 20, 8, 10.4, 6, "crackers"),
+            p(61, "Choc-Nut", "snacks_sweets", "Choc-Nut", "piece", "24g", 20, 8, 10.4, 8, "chocolates"),
+            p(62, "Flat Tops Chocolate", "snacks_sweets", "Flat Tops", "piece", "24g", 20, 7, 9.1, 8, "chocolates"),
+            p(63, "Cloud 9 Chocolate Bar", "snacks_sweets", "Cloud 9", "piece", "27g", 20, 10, 13, 8, "chocolates"),
+            p(64, "Maxx Candy", "snacks_sweets", "Maxx", "piece", "single", 20, 2.5, 3.5, 15, "candies"),
+            p(65, "White Rabbit Candy", "snacks_sweets", "White Rabbit", "piece", "single", 20, 3, 4.05, 15, "candies"),
+            p(66, "Kendi Mint Candy", "snacks_sweets", "Kendi Mint", "piece", "single", 0, 2, 2.8, 15, "candies"),
+            p(67, "Piattos Cheese", "snacks_sweets", "Piattos", "pack", "85g", 20, 30, 37.5, 6, "chips"),
+            p(68, "Nova Multigrain Snacks", "snacks_sweets", "Nova", "pack", "78g", 20, 30, 37.5, 6, "chips"),
+            p(69, "Clover Chips Cheese", "snacks_sweets", "Clover Chips", "pack", "55g", 20, 20, 25, 6, "chips"),
+            p(70, "Chippy Barbecue", "snacks_sweets", "Chippy", "pack", "110g", 20, 25, 31.25, 6, "chips"),
+            p(71, "Oishi Prawn Crackers", "snacks_sweets", "Oishi", "pack", "60g", 3, 18, 22.5, 6, "chips"),
+            p(72, "Mang Juan Espesyal", "snacks_sweets", "Mang Juan", "pack", "90g", 20, 25, 31.25, 6, "chips"),
+            p(73, "La Filipina Iodized Salt", "pantry_staples", "La Filipina", "pack", "500g", 20, 15, 19.5, 5, "salt"),
+            p(74, "Diamond Crystal Salt", "pantry_staples", "Diamond Crystal", "pack", "500g", 20, 18, 23.4, 5, "salt"),
+            p(75, "Morton Iodized Salt", "pantry_staples", "Morton", "pack", "500g", 20, 22, 28.6, 5, "salt"),
+            p(76, "Local Sea Salt", "pantry_staples", "Sea Salt", "pack", "500g", 20, 12, 15.6, 5, "salt"),
+            p(77, "Iodized Salt", "pantry_staples", "Iodized Salt", "pack", "500g", 0, 13, 16.9, 5, "salt"),
+            p(78, "Fine Table Salt", "pantry_staples", "Fine Salt", "pack", "500g", 20, 12, 15.6, 5, "salt"),
+            p(79, "Victorias Refined Sugar", "pantry_staples", "Victorias", "pack", "1kg", 20, 80, 96, 5, "sugar"),
+            p(80, "Central Refined Sugar", "pantry_staples", "Central Azucarera", "pack", "1kg", 20, 78, 93.6, 5, "sugar"),
+            p(81, "Sweet Crystal Sugar", "pantry_staples", "Sweet Crystal", "pack", "1kg", 20, 75, 90, 5, "sugar"),
+            p(82, "C&H Sugar", "pantry_staples", "C&H", "pack", "1kg", 0, 95, 114, 5, "sugar"),
+            p(83, "Domino Sugar", "pantry_staples", "Domino", "pack", "1kg", 2, 90, 108, 5, "sugar"),
+            p(84, "Brown Sugar", "pantry_staples", "Brown Sugar", "pack", "1kg", 20, 75, 90, 5, "sugar"),
+            p(85, "Sunsilk Shampoo", "personal_care", "Sunsilk", "sachet", "12ml", 20, 7, 9.45, 8, "shampoo"),
+            p(86, "Cream Silk Conditioner", "personal_care", "Cream Silk", "sachet", "12ml", 20, 7, 9.45, 8, "conditioner"),
+            p(87, "Pantene Shampoo", "personal_care", "Pantene", "sachet", "12ml", 20, 8, 10.8, 8, "shampoo"),
+            p(88, "Head & Shoulders Shampoo", "personal_care", "Head & Shoulders", "sachet", "12ml", 20, 8, 10.8, 8, "shampoo"),
+            p(89, "Palmolive Shampoo", "personal_care", "Palmolive", "sachet", "12ml", 20, 6.5, 8.78, 8, "shampoo"),
+            p(90, "Rejoice Shampoo", "personal_care", "Rejoice", "sachet", "12ml", 3, 7, 9.45, 8, "conditioner"),
+            p(91, "Safeguard Classic", "personal_care", "Safeguard", "bar", "60g", 20, 22, 27.5, 6, "bath_soap"),
+            p(92, "Dove Beauty Bar", "personal_care", "Dove", "bar", "90g", 20, 45, 56.25, 5, "bath_soap"),
+            p(93, "Palmolive Naturals", "personal_care", "Palmolive", "bar", "90g", 20, 25, 31.25, 6, "bath_soap"),
+            p(94, "Bioderm Soap", "personal_care", "Bioderm", "bar", "90g", 0, 20, 25, 6, "bath_soap"),
+            p(95, "Silka Papaya Soap", "personal_care", "Silka", "bar", "65g", 20, 25, 31.25, 6, "bath_soap"),
+            p(96, "Kojic Acid Soap", "personal_care", "Kojic", "bar", "65g", 4, 25, 31.25, 6, "bath_soap"),
+            p(97, "Surf Powder Detergent", "household_care", "Surf", "sachet", "40g", 20, 8, 10.4, 8, "laundry"),
+            p(98, "Ariel Powder Detergent", "household_care", "Ariel", "sachet", "40g", 20, 9, 11.7, 8, "laundry"),
+            p(99, "Tide Powder Detergent", "household_care", "Tide", "sachet", "40g", 20, 9, 11.7, 8, "laundry"),
+            p(100, "Champion Powder Detergent", "household_care", "Champion", "sachet", "40g", 20, 7, 9.1, 8, "laundry"),
+            p(101, "Pride Powder Detergent", "household_care", "Pride", "sachet", "40g", 0, 7, 9.1, 8, "laundry"),
+            p(102, "Breeze Powder Detergent", "household_care", "Breeze", "sachet", "40g", 3, 9, 11.7, 8, "laundry"),
+            p(103, "Colgate Toothpaste", "personal_care", "Colgate", "tube", "50g", 20, 45, 56.25, 5, "toothpaste"),
+            p(104, "Closeup Toothpaste", "personal_care", "Closeup", "tube", "50g", 20, 42, 52.5, 5, "toothpaste"),
+            p(105, "Hapee Toothpaste", "personal_care", "Hapee", "tube", "50g", 20, 35, 43.75, 5, "toothpaste"),
+            p(106, "Oral-B Toothbrush", "personal_care", "Oral-B", "piece", "1pc", 20, 35, 43.75, 5, "toothbrush"),
+            p(107, "Pepsodent Toothpaste", "personal_care", "Pepsodent", "tube", "50g", 20, 35, 43.75, 5, "toothpaste"),
+            p(108, "Systema Toothbrush", "personal_care", "Systema", "piece", "1pc", 2, 30, 37.5, 5, "toothbrush"),
+            p(109, "Katol Mosquito Coil", "household_care", "Katol", "pack", "10 coils", 20, 22, 28.6, 5, "mosquito_control"),
+            p(110, "Baygon Mosquito Coil", "household_care", "Baygon", "pack", "10 coils", 20, 35, 45.5, 5, "mosquito_control"),
+            p(111, "Off! Mosquito Repellent", "household_care", "Off!", "sachet", "1pc", 20, 12, 15.6, 5, "mosquito_control"),
+            p(112, "Raid Mosquito Coil", "household_care", "Raid", "pack", "10 coils", 20, 30, 39, 5, "mosquito_control"),
+            p(113, "Lion Tiger Mosquito Coil", "household_care", "Lion Tiger", "pack", "10 coils", 0, 20, 26, 5, "mosquito_control"),
+            p(114, "Local Mosquito Coil", "household_care", "Local Brand", "pack", "10 coils", 4, 18, 23.4, 5, "mosquito_control"),
+            p(115, "Marlboro Red", "liquor_wine", "Marlboro", "pack", "20 sticks", 20, 140, 154, 5, "cigarettes"),
+            p(116, "Fortune Red", "liquor_wine", "Fortune", "pack", "20 sticks", 20, 120, 132, 5, "cigarettes"),
+            p(117, "Winston Red", "liquor_wine", "Winston", "pack", "20 sticks", 20, 130, 143, 5, "cigarettes"),
+            p(118, "Camel Blue", "liquor_wine", "Camel", "pack", "20 sticks", 20, 130, 143, 5, "cigarettes"),
+            p(119, "Philip Morris Red", "liquor_wine", "Philip Morris", "pack", "20 sticks", 20, 125, 137.5, 5, "cigarettes"),
+            p(120, "Mighty Red", "liquor_wine", "Mighty", "pack", "20 sticks", 0, 110, 121, 5, "cigarettes"),
+            p(121, "Minola Cooking Oil", "pantry_staples", "Minola", "bottle", "1L", 20, 120, 132, 5, "cooking_oil"),
+            p(122, "Baguio Oil", "pantry_staples", "Baguio", "bottle", "1L", 20, 110, 121, 5, "cooking_oil"),
+            p(123, "Palm Oil Cooking Oil", "pantry_staples", "Palm Oil", "bottle", "1L", 20, 115, 126.5, 5, "cooking_oil"),
+            p(124, "Datu Puti Vinegar", "pantry_staples", "Datu Puti", "bottle", "1L", 20, 60, 66, 5, "vinegar"),
+            p(125, "Silver Swan Vinegar", "pantry_staples", "Silver Swan", "bottle", "1L", 20, 58, 63.8, 5, "vinegar"),
+            p(126, "Mafran Cane Vinegar", "pantry_staples", "Mafran", "bottle", "1L", 20, 55, 60.5, 5, "vinegar"),
+            p(127, "Purefoods Corned Beef", "canned_goods", "Purefoods", "can", "150g", 20, 80, 88, 5, "corned_beef"),
+            p(128, "Argentina Corned Beef", "canned_goods", "Argentina", "can", "155g", 20, 75, 82.5, 5, "corned_beef"),
+            p(129, "CDO Corned Beef", "canned_goods", "CDO", "can", "150g", 20, 72, 79.2, 5, "corned_beef"),
+            p(130, "CDO Meat Loaf Plain", "canned_goods", "CDO", "can", "150g", 20, 50, 55, 5, "meat_loaf"),
+            p(131, "CDO Meat Loaf Sweet Style", "canned_goods", "CDO", "can", "150g", 20, 50, 55, 5, "meat_loaf"),
+            p(132, "Purefoods Luncheon Meat", "canned_goods", "Purefoods", "can", "150g", 20, 55, 60.5, 5, "meat_loaf"),
+            p(133, "Argentina Sausage", "canned_goods", "Argentina", "can", "150g", 20, 45, 49.5, 5, "sausage"),
+            p(134, "Purefoods Sausage", "canned_goods", "Purefoods", "can", "150g", 20, 48, 52.8, 5, "sausage"),
+            p(135, "CDO Vienna Sausage", "canned_goods", "CDO", "can", "150g", 20, 46, 50.6, 5, "sausage"),
+            p(136, "Nissin Cup Noodles Beef", "instant_dry_goods", "Nissin", "piece", "65g", 20, 25, 27.5, 5, "cup_noodles"),
+            p(137, "Lucky Me! Cup Noodles", "instant_dry_goods", "Lucky Me!", "piece", "55g", 20, 18, 19.8, 5, "cup_noodles"),
+            p(138, "Payless Cup Noodles", "instant_dry_goods", "Payless", "piece", "55g", 20, 15, 16.5, 5, "cup_noodles"),
+            p(139, "Royal Spaghetti", "instant_dry_goods", "Royal", "pack", "500g", 20, 35, 38.5, 5, "pasta"),
+            p(140, "San Remo Spaghetti", "instant_dry_goods", "San Remo", "pack", "500g", 20, 40, 44, 5, "pasta"),
+            p(141, "Del Monte Spaghetti", "instant_dry_goods", "Del Monte", "pack", "500g", 20, 38, 41.8, 5, "pasta"),
+            p(142, "Knorr Chicken Soup Mix", "instant_dry_goods", "Knorr", "pack", "30g", 20, 15, 16.5, 5, "soup_mixes"),
+            p(143, "Knorr Beef Soup Mix", "instant_dry_goods", "Knorr", "pack", "30g", 20, 15, 16.5, 5, "soup_mixes"),
+            p(144, "Mama Sita's Sinigang Mix", "instant_dry_goods", "Mama Sita's", "pack", "40g", 20, 20, 22, 5, "soup_mixes"),
+            p(145, "Bear Brand Powdered Milk", "beverages", "Bear Brand", "pack", "600g", 20, 380, 418, 5, "powdered_milk"),
+            p(146, "Nido 3+ Powdered Milk", "beverages", "Nido", "pack", "700g", 20, 420, 462, 5, "powdered_milk"),
+            p(147, "Nestlé Milkady", "beverages", "Nestlé", "pack", "650g", 20, 400, 440, 5, "powdered_milk"),
+            p(148, "Milo Chocolate Drink", "beverages", "Milo", "pack", "500g", 20, 280, 308, 5, "chocolate_drink"),
+            p(149, "Ovaltine Chocolate Drink", "beverages", "Ovaltine", "pack", "500g", 20, 270, 297, 5, "chocolate_drink"),
+            p(150, "Nestlé Nesquik", "beverages", "Nesquik", "pack", "400g", 20, 260, 286, 5, "chocolate_drink"),
+            p(151, "Zesto Orange Juice", "beverages", "Zesto", "bottle", "1L", 20, 65, 71.5, 5, "juice"),
+            p(152, "Tang Orange", "beverages", "Tang", "pack", "500g", 20, 120, 132, 5, "juice"),
+            p(153, "Sunkist Apple Juice", "beverages", "Sunkist", "bottle", "1L", 20, 70, 77, 5, "juice"),
+            p(154, "Eden Cheese", "dairy_refrigerated", "Eden", "pack", "160g", 20, 95, 104.5, 5, "cheese"),
+            p(155, "Magnolia Cheese", "dairy_refrigerated", "Magnolia", "pack", "160g", 20, 90, 99, 5, "cheese"),
+            p(156, "Quickmelt Cheese", "dairy_refrigerated", "Quickmelt", "pack", "150g", 20, 88, 96.8, 5, "cheese"),
+            p(157, "Buttercup", "dairy_refrigerated", "Buttercup", "bar", "200g", 20, 65, 71.5, 5, "butter"),
+            p(158, "Dari Creme Butter", "dairy_refrigerated", "Dari Creme", "bar", "200g", 20, 60, 66, 5, "butter"),
+            p(159, "Anchor Butter", "dairy_refrigerated", "Anchor", "bar", "250g", 20, 240, 264, 5, "butter"),
+            p(160, "Star Margarine", "dairy_refrigerated", "Star", "bar", "200g", 20, 45, 49.5, 5, "margarine"),
+            p(161, "Dari Creme Margarine", "dairy_refrigerated", "Dari Creme", "bar", "200g", 20, 42, 46.2, 5, "margarine"),
+            p(162, "Reyes Margarine", "dairy_refrigerated", "Reyes", "bar", "200g", 20, 40, 44, 5, "margarine"),
+            p(163, "Purefoods Vienna Sausage", "dairy_refrigerated", "Purefoods", "pack", "125g", 20, 40, 44, 5, "chilled_meats"),
+            p(164, "CDO Chicken Hotdog", "dairy_refrigerated", "CDO", "pack", "500g", 20, 120, 132, 5, "chilled_meats"),
+            p(165, "Purefoods Star Hotdog", "dairy_refrigerated", "Purefoods", "pack", "500g", 20, 130, 143, 5, "chilled_meats"),
+            p(166, "Pork Belly", "fresh_section", "Local", "kg", "1kg", 20, 280, 308, 5, "fresh_meat"),
+            p(167, "Chicken Leg Quarter", "fresh_section", "Local", "kg", "1kg", 20, 180, 198, 5, "fresh_meat"),
+            p(168, "Beef Sirloin", "fresh_section", "Local", "kg", "1kg", 20, 420, 462, 5, "fresh_meat"),
+            p(169, "Tilapia", "fresh_section", "Local", "kg", "1kg", 20, 150, 165, 5, "fresh_seafood"),
+            p(170, "Galunggong", "fresh_section", "Local", "kg", "1kg", 20, 160, 176, 5, "fresh_seafood"),
+            p(171, "Sugpo Shrimp", "fresh_section", "Local", "kg", "1kg", 20, 450, 495, 5, "fresh_seafood"),
+            p(172, "Lakatan Banana", "fresh_section", "Local", "kg", "1kg", 20, 70, 77, 5, "fruits"),
+            p(173, "Carabao Mango", "fresh_section", "Local", "kg", "1kg", 20, 120, 132, 5, "fruits"),
+            p(174, "Red Apple", "fresh_section", "Imported", "kg", "1kg", 20, 180, 198, 5, "fruits"),
+            p(175, "Kangkong", "fresh_section", "Local", "bundle", "1 bundle", 20, 20, 22, 5, "vegetables"),
+            p(176, "Ampalaya", "fresh_section", "Local", "kg", "1kg", 20, 60, 66, 5, "vegetables"),
+            p(177, "Sitaw", "fresh_section", "Local", "bundle", "1 bundle", 20, 25, 27.5, 5, "vegetables"),
+            p(178, "San Miguel Pale Pilsen", "liquor_wine", "San Miguel", "bottle", "330mL", 20, 55, 60.5, 5, "beer"),
+            p(179, "Red Horse Beer", "liquor_wine", "Red Horse", "bottle", "500mL", 20, 65, 71.5, 5, "beer"),
+            p(180, "San Mig Light", "liquor_wine", "San Miguel", "bottle", "330mL", 20, 55, 60.5, 5, "beer"),
+            p(181, "Ginebra San Miguel", "liquor_wine", "Ginebra", "bottle", "350mL", 20, 95, 104.5, 5, "gin"),
+            p(182, "Ginebra Premium Gin", "liquor_wine", "Ginebra", "bottle", "350mL", 20, 130, 143, 5, "gin"),
+            p(183, "Ginebra Flavors", "liquor_wine", "Ginebra", "bottle", "350mL", 20, 140, 154, 5, "gin"),
+            p(184, "Fundador Brandy", "liquor_wine", "Fundador", "bottle", "350mL", 20, 180, 198, 5, "brandy"),
+            p(185, "Emperador Brandy", "liquor_wine", "Emperador", "bottle", "350mL", 20, 150, 165, 5, "brandy"),
+            p(186, "Generoso Brandy", "liquor_wine", "Generoso", "bottle", "350mL", 20, 140, 154, 5, "brandy"),
+            p(187, "Moscato d'Asti", "liquor_wine", "Moscato", "bottle", "750mL", 20, 320, 352, 5, "wine"),
+            p(188, "Sangria Red Wine", "liquor_wine", "Sangria", "bottle", "750mL", 20, 280, 308, 5, "wine"),
+            p(189, "Chardonnay White Wine", "liquor_wine", "Chardonnay", "bottle", "750mL", 20, 300, 330, 5, "wine"),
+            p(190, "Vaseline Body Lotion", "personal_care", "Vaseline", "bottle", "200mL", 20, 180, 198, 5, "lotion"),
+            p(191, "Jergens Body Lotion", "personal_care", "Jergens", "bottle", "200mL", 20, 220, 242, 5, "lotion"),
+            p(192, "Nivea Body Lotion", "personal_care", "Nivea", "bottle", "200mL", 20, 240, 264, 5, "lotion"),
+            p(193, "Ever Bilena Lipstick", "personal_care", "Ever Bilena", "piece", "1 pc", 20, 120, 132, 5, "cosmetics"),
+            p(194, "Nichido Pressed Powder", "personal_care", "Nichido", "piece", "1 pc", 20, 180, 198, 5, "cosmetics"),
+            p(195, "Ever Bilena Face Powder", "personal_care", "Ever Bilena", "piece", "1 pc", 20, 150, 165, 5, "cosmetics"),
+            p(196, "Downy Fabric Conditioner", "household_care", "Downy", "sachet", "1L", 20, 150, 165, 5, "fabric_softener"),
+            p(197, "Comfort Fabric Conditioner", "household_care", "Comfort", "sachet", "1L", 20, 145, 159.5, 5, "fabric_softener"),
+            p(198, "Surf Fabric Conditioner", "household_care", "Surf", "sachet", "1L", 20, 140, 154, 5, "fabric_softener"),
+            p(199, "Joy Dishwashing Liquid", "household_care", "Joy", "sachet", "170mL", 20, 30, 33, 5, "dishwashing"),
+            p(200, "Surf Dishwashing Liquid", "household_care", "Surf", "sachet", "170mL", 20, 28, 30.8, 5, "dishwashing"),
+            p(201, "Zonrox Dishwashing", "household_care", "Zonrox", "sachet", "170mL", 20, 29, 31.9, 5, "dishwashing"),
+            p(202, "Zonrox Bleach", "household_care", "Zonrox", "bottle", "1L", 20, 85, 93.5, 5, "cleaners"),
+            p(203, "Mr. Muscle Cleaner", "household_care", "Mr. Muscle", "bottle", "500mL", 20, 120, 132, 5, "cleaners"),
+            p(204, "Lysol Disinfectant", "household_care", "Lysol", "bottle", "1L", 20, 150, 165, 5, "cleaners"),
+            p(205, "Champion Trash Bags", "household_care", "Champion", "pack", "14 pcs", 20, 60, 66, 5, "trash_bags"),
+            p(206, "Green Trash Bags", "household_care", "Green", "pack", "14 pcs", 20, 55, 60.5, 5, "trash_bags"),
+            p(207, "Ecobag Trash Bags", "household_care", "Ecobag", "pack", "14 pcs", 20, 58, 63.8, 5, "trash_bags"),
+            p(208, "Pampers Diapers Medium", "baby_care", "Pampers", "pack", "30 pcs", 20, 280, 308, 5, "diapers"),
+            p(209, "EQ Diapers Medium", "baby_care", "EQ", "pack", "30 pcs", 20, 260, 286, 5, "diapers"),
+            p(210, "Baby Love Diapers", "baby_care", "Baby Love", "pack", "30 pcs", 20, 240, 264, 5, "diapers"),
+            p(211, "Pampers Baby Wipes", "baby_care", "Pampers", "pack", "48 pcs", 20, 80, 88, 5, "baby_wipes"),
+            p(212, "EQ Baby Wipes", "baby_care", "EQ", "pack", "48 pcs", 20, 70, 77, 5, "baby_wipes"),
+            p(213, "Baby Care Wipes", "baby_care", "Baby Care", "pack", "40 pcs", 20, 65, 71.5, 5, "baby_wipes"),
+            p(214, "Johnson's Baby Lotion", "baby_care", "Johnson's", "bottle", "200mL", 20, 180, 198, 5, "baby_toiletries"),
+            p(215, "Johnson's Baby Powder", "baby_care", "Johnson's", "bottle", "200g", 20, 120, 132, 5, "baby_toiletries"),
+            p(216, "Cetaphil Baby Wash", "baby_care", "Cetaphil", "bottle", "400mL", 20, 280, 308, 5, "baby_toiletries"),
+            p(217, "CDO Facial Tissue", "paper_sanitary", "CDO", "pack", "100 pcs", 20, 40, 44, 5, "tissue"),
+            p(218, "Kleenex Tissues", "paper_sanitary", "Kleenex", "pack", "100 pcs", 20, 60, 66, 5, "tissue"),
+            p(219, "Scott Tissues", "paper_sanitary", "Scott", "pack", "100 pcs", 20, 55, 60.5, 5, "tissue"),
+            p(220, "Velvex Paper Towel", "paper_sanitary", "Velvex", "piece", "1 roll", 20, 45, 49.5, 5, "paper_towels"),
+            p(221, "Scott Paper Towel", "paper_sanitary", "Scott", "piece", "1 roll", 20, 60, 66, 5, "paper_towels"),
+            p(222, "Bounty Paper Towel", "paper_sanitary", "Bounty", "piece", "1 roll", 20, 65, 71.5, 5, "paper_towels"),
+            p(223, "Nurse Beauty Sanitary Pads", "paper_sanitary", "Nurse Beauty", "pack", "10 pcs", 20, 25, 27.5, 5, "sanitary_pads"),
+            p(224, "Modess Sanitary Pads", "paper_sanitary", "Modess", "pack", "10 pcs", 20, 55, 60.5, 5, "sanitary_pads"),
+            p(225, "Whisper Sanitary Pads", "paper_sanitary", "Whisper", "pack", "10 pcs", 20, 50, 55, 5, "sanitary_pads"),
+        )
+    }
+
+    private fun p(
+        id: Int, name: String, category: String, brand: String,
+        unit: String, packageSize: String, qty: Int, cost: Number,
+        sell: Number, threshold: Int, subcategory: String
+    ) = Product(
+        id = id, name = name, quantity = qty, costPrice = cost.toDouble(),
+        sellingPrice = sell.toDouble(), lowStockThreshold = threshold,
+        category = category, subcategory = subcategory, brand = brand,
+        packageSize = packageSize, unit = unit
+    )
 
     fun clearAllInventory() {
         _products.value = emptyList()

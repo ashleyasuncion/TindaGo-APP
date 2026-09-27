@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
@@ -170,6 +171,12 @@ fun SettingsScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp)
                 .verticalScroll(settingsScrollState)
         ) {
+            // ═══════════════════════════════════════════════════════
+            // ── Cloud Sync (Phase 2 — Supabase push, offline-first) ──
+            // ═══════════════════════════════════════════════════════
+            CloudSyncSection(viewModel = viewModel)
+            Spacer(modifier = Modifier.height(16.dp))
+
             // ═══════════════════════════════════════════════════════
             // ── Store Profile ──
             // ═══════════════════════════════════════════════════════
@@ -1076,4 +1083,110 @@ private fun SettingsSectionTitle(title: String) {
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(bottom = 8.dp)
     )
+}
+
+/**
+ * Phase 2 — Cloud Sync card (Supabase push, manual one-tap).
+ * Nullable ViewModel so SettingsScreenPreview (viewModel = null) keeps working.
+ */
+@Composable
+fun CloudSyncSection(viewModel: AppViewModel?) {
+    if (viewModel == null) return
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) { viewModel.checkLoginStatus() }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "☁️ Cloud Sync",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (!isLoggedIn) {
+                Text(
+                    "Sign in to sync your data to the cloud and access reports on the web.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { viewModel.signIn(email, password) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Sign In")
+                }
+            } else {
+                Text(
+                    "✅ Connected",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { viewModel.syncNow() },
+                    enabled = !isSyncing,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isSyncing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (isSyncing) "Syncing..." else "Sync Now")
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                TextButton(
+                    onClick = { viewModel.signOut() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Sign Out", color = MaterialTheme.colorScheme.error)
+                }
+            }
+
+            syncStatus?.let { status ->
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    status,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (status.contains("fail", ignoreCase = true))
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }

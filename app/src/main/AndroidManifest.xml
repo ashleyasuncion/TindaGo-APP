@@ -11,6 +11,10 @@
          This works only for sideloaded/beta APKs (capstone demo). -->
     <uses-permission android:name="android.permission.SEND_SMS" />
 
+    <!-- Phase 2: cloud sync to Supabase (Ktor/HttpURLConnection + PostgREST/Auth) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name=".TindaGoApp"
         android:allowBackup="false"

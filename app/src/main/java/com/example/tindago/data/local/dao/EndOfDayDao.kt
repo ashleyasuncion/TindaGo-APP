@@ -12,6 +12,9 @@ interface EndOfDayDao {
     @Query("SELECT * FROM end_of_day_data WHERE date = :date")
     suspend fun getByDate(date: String): EndOfDayEntity?
 
+    @Query("SELECT * FROM end_of_day_data ORDER BY date DESC")
+    suspend fun getAllEntries(): List<EndOfDayEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(data: EndOfDayEntity)
 

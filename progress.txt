@@ -4,6 +4,13 @@ TINDAGO — KOTLIN ANDROID APP PROGRESS
 Date: Aug 18–22, 2026
 Project: TindaGo Android App (formerly Sari-sari_smart)
 ================================================================================
+================================================================================
+!! FROZEN FILE !!  (pointer added 2026-09-27)
+History/thesis evidence only - do not append new entries anywhere here.
+This file's LAST block states the freeze; ongoing Android-app progress is
+recorded in the sibling file:  progress2.txt
+================================================================================
+
 
 PROJECT OVERVIEW
 --------------------------------------------------------------------------------
@@ -1444,3 +1451,67 @@ VERIFICATION:
   (remaining hits only in backup/ + _removed/ + _verify.py, none compiled).
 ================================================================================
 
+
+================================================================================
+PHASE 2 — PART 1: ANDROID → SUPABASE SYNC FOUNDATION (Task 1) — DONE
+Date: 2026-09-26
+Status: IMPLEMENTED (deps + permissions) — compile check pending/running
+Plan: docs/Phase2_Android_Sync_Plan.md (Tasks 1–7) + review findings
+Type: Offline-first stays default; cloud sync is manual one-tap push (10 tables)
+
+WHAT CHANGED (code):
+- app/build.gradle.kts (+3 lines after WorkManager block):
+    // Supabase sync (Phase 2 — Ktor wraps HttpURLConnection, no native code)
+    implementation("io.ktor:ktor-client-core:2.3.12")
+    implementation("io.ktor:ktor-client-android:2.3.12")
+  Rationale: ktor-client-android wraps built-in HttpURLConnection (safest
+  engine, no OkHttp/CIO DNS issues). Known risk: Ktor 2.3.12 targets Kotlin
+  1.9.x while project uses Kotlin 2.0.21 — watch Gradle resolution.
+  Fallback if resolution fails: raw HttpURLConnection (~40 lines, zero deps).
+- app/src/main/AndroidManifest.xml (+4 lines after SEND_SMS):
+    <!-- Phase 2: cloud sync to Supabase (Ktor/HttpURLConnection + PostgREST/Auth) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  (INTERNET was previously missing; ACCESS_NETWORK_STATE for future
+  offline-guard before syncNow.)
+
+WHAT CHANGED (docs):
+- docs/Phase2_Android_Sync_Plan.md (new, ~815 lines, extensive ver):
+  Task 1 deps+permissions | Task 2 getAllEntries x2 | Task 3 SupabaseConfig
+  (refresh_token + uid fix) | Task 4 full 10-table SQL (user_id uuid,
+  restock_log.id=text, date PKs=text) | Task 5 SyncRepository (auth+upsert+
+  10 snake_case converters) | Task 6 AppViewModel.initSync corrected pattern
+  (no AndroidViewModel, previews safe) | Task 7 CloudSyncSection (nullable,
+  password masking fix) | testing checklist | defense narrative.
+- Review findings baked in: AppDatabase DAO names verified, entity fields
+  verified (RestockLogEntity.id is String), AppViewModel is plain ViewModel
+  (initRepository pattern), no JSON/HTTP lib confirmed.
+
+AFFECTED FILES (live, git copy):
+- app/build.gradle.kts
+- app/src/main/AndroidManifest.xml
+- docs/Phase2_Android_Sync_Plan.md (new)
+
+VERIFICATION:
+- Manual read-back: build.gradle.kts:83-85 + AndroidManifest.xml:14-16 OK.
+- ./gradlew :app:assembleDebug (online, Ktor first-download) — running at
+  log time; Part 2 will seal result. NOTE: must run ONLINE (offline flag
+  cannot resolve new Ktor artifacts from cache).
+- Next: Task 2 (DailyEntryDao.getAllEntries + EndOfDayDao.getAllEntries,
+  suspend List, Room KSP rebuild).
+
+================================================================================
+OPEN (carried):
+- [ ] Real SUPABASE_URL + anon key (Dashboard → Settings → API) before Task 3 test
+- [ ] Ktor vs HttpURLConnection decision if Gradle resolution breaks
+- [ ] RLS policies (auth.uid() = user_id) + pull/down-sync out of scope (push-only Phase 2)
+================================================================================
+
+================================================================================
+NOTICE: THIS FILE IS FROZEN (effective 2026-09-26).
+This banner is the FINAL block of this file: lines 1510-1517 of 1517.
+Nothing may be appended below it. (2026-09-27 fix: an earlier edit inserted
+this notice mid-file, stranding 260 lines of older entries beneath it.)
+All subsequent Android-app development progress is recorded in:
+  git/app/TindaGo_APP/progress2.txt   (Phase 2 Parts 1-9, then Phase 3)
+================================================================================

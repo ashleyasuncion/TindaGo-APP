@@ -1,0 +1,424 @@
+================================================================================
+TINDAGO — KOTLIN ANDROID APP PROGRESS (PART 2)
+================================================================================
+Date started: 2026-09-26
+Project: TindaGo Android App (formerly Sari-sari_smart)
+Note: progress.txt (1517 lines, Aug 18 – Sep 26, 2026; its FROZEN notice is the
+  final block, lines 1510-1517) is full, so new entries continue here. progress.txt
+  is FROZEN — do not append there (see the audit entry at the end of this file).
+  Full history: see ../progress.txt (Stages 1-6, V1.0 rebrand, V2.2 ML forecast,
+  CategorySearchField parity, Phase 2 plan docs/Phase2_Android_Sync_Plan.md).
+================================================================================
+
+CARRYOVER STATE (from progress.txt @ freeze)
+--------------------------------------------------------------------------------
+- Tech: Kotlin 2.0.21, Compose + Material3, Room 11 entities/DAOs (tindago_db
+  v12), Navigation Compose, WorkManager, Manual DI (TindaGoApp), StateFlow VM.
+- Screens: 20 (Morning/Day/Closing + 17 support). Tests: 89 unit passing.
+- Last sealed: V2.2 Level 1 Offline ML Demand Forecast (ForecastEngine, 7-day
+  SMA/EMA/Trend, ForecastBadge/DetailCard, urgentRestocks) — clean build sealed.
+- Last parity: CategorySearchField shared Checkout+Stocks (generic rename,
+  categoryPlaceholder param, EN/FIL "All"/"Lahat").
+- Phase 2 plan: docs/Phase2_Android_Sync_Plan.md (~815 lines, extensive ver) —
+  Tasks 1-7: Ktor deps+permissions, 2x getAllEntries, SupabaseConfig
+  (refresh_token+uid), 10-table SQL (user_id uuid, restock_log.id=text),
+  SyncRepository (auth+upsert+10 converters), AppViewModel.initSync (no
+  AndroidViewModel), CloudSyncSection (nullable). Push-only, offline-first.
+- Contact placeholder still pending: support@tindago.com.
+
+================================================================================
+PHASE 2 — PART 1: ANDROID → SUPABASE SYNC FOUNDATION (Task 1) — DONE
+Date: 2026-09-26
+Status: IMPLEMENTED (deps + permissions) — Gradle online build still to seal
+Plan: docs/Phase2_Android_Sync_Plan.md Task 1
+Type: Offline-first unchanged; cloud sync is manual one-tap push (10 tables)
+
+WHAT WAS DONE IN TASK 1 (2 files, +7 lines total):
+1) app/build.gradle.kts (+3 lines, after WorkManager block, lines 83-85):
+     // Supabase sync (Phase 2 — Ktor wraps HttpURLConnection, no native code)
+     implementation("io.ktor:ktor-client-core:2.3.12")
+     implementation("io.ktor:ktor-client-android:2.3.12")
+   Why Ktor: ktor-client-android wraps Android's built-in HttpURLConnection —
+   safest engine (no OkHttp, no CIO DNS issues, zero native code). Only org.json
+   + Room + WorkManager existed before; no JSON/HTTP lib. INTERNET perm was
+   missing. Known risk: Ktor 2.3.12 targets Kotlin 1.9.x, project is 2.0.21 —
+   watch resolution. Fallback: raw HttpURLConnection (~40 lines, zero deps).
+2) app/src/main/AndroidManifest.xml (+4 lines, after SEND_SMS, lines 14-16):
+     <!-- Phase 2: cloud sync to Supabase (Ktor/HttpURLConnection + PostgREST/Auth) -->
+     <uses-permission android:name="android.permission.INTERNET" />
+     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+   Why both: INTERNET is mandatory (was missing); ACCESS_NETWORK_STATE enables
+   a future offline-guard before syncNow() so taps fail fast with a message.
+
+WHAT WAS NOT DONE (explicitly deferred to Tasks 2-7):
+- No code uses Ktor yet (no imports, no client). No behavior change.
+- Task 2: DailyEntryDao.getAllEntries + EndOfDayDao.getAllEntries (suspend List)
+- Task 3: data/sync/SupabaseConfig.kt (URL + anon key + session prefs)
+- Task 4: Supabase 10-table SQL (run in dashboard BEFORE any sync test)
+- Task 5: data/sync/SyncRepository.kt (signIn + syncAll + 10 converters)
+- Task 6: AppViewModel.initSync + NavGraph wiring (NOT AndroidViewModel)
+- Task 7: CloudSyncSection in SettingsScreen (nullable for previews)
+
+AFFECTED FILES (live, git copy):
+- app/build.gradle.kts
+- app/src/main/AndroidManifest.xml
+- docs/Phase2_Android_Sync_Plan.md (new earlier, ~815 lines — reference only)
+
+VERIFICATION:
+- Read-back OK: build.gradle.kts:83-85 + AndroidManifest.xml:14-16.
+- ./gradlew :app:assembleDebug — MUST run ONLINE (Ktor artifacts not in cache;
+  --offline will fail). Result pending at log time; seal in next entry.
+- Next: Task 2 + Room KSP rebuild.
+
+OPEN (carried):
+- [ ] Seal online build (BUILD SUCCESSFUL or capture error)
+- [ ] Real SUPABASE_URL + anon key (Dashboard → Settings → API) before Task 3 test
+- [ ] Ktor vs HttpURLConnection fallback decision if resolution breaks
+- [ ] RLS policies (auth.uid() = user_id) + pull/down-sync out of scope (push-only)
+================================================================================
+================================================================================
+PHASE 2 — PART 2: DAO getAllEntries x2 (Task 2) — DONE (code) / BUILD PENDING
+Date: 2026-09-26
+Status: IMPLEMENTED — read-back verified; Gradle compile output not capturable
+Plan: docs/Phase2_Android_Sync_Plan.md Task 2
+
+WHAT WAS DONE IN TASK 2 (2 files, +3 lines each):
+1) data/local/dao/DailyEntryDao.kt (lines 18-19):
+     @Query("SELECT * FROM daily_entries ORDER BY date DESC")
+     suspend fun getAllEntries(): List<DailyEntryEntity>
+2) data/local/dao/EndOfDayDao.kt (lines 15-16):
+     @Query("SELECT * FROM end_of_day_data ORDER BY date DESC")
+     suspend fun getAllEntries(): List<EndOfDayEntity>
+Why suspend List (not Flow): sync is a one-shot read, not a reactive stream.
+Call sites (Task 5) use getAllEntries() directly — no .first() needed, unlike
+the 8 Flow DAOs. Existing getLatestEntry/getLatest + getByDate untouched.
+
+AFFECTED FILES (live, git copy):
+- app/src/main/java/com/example/tindago/data/local/dao/DailyEntryDao.kt
+- app/src/main/java/com/example/tindago/data/local/dao/EndOfDayDao.kt
+
+VERIFICATION:
+- Read-back OK: both files show new query + signature in place.
+- ./gradlew :app:compileDebugKotlin — launched but shell integration could not
+  capture output (terminal left open / maybe still running). NOT sealed.
+  Room KSP must still pass — re-run ONLINE or OFFLINE (no new deps in Task 2,
+  so --offline is fine) and seal in next entry.
+- Next: Task 3 (data/sync/SupabaseConfig.kt) — needs real URL + anon key.
+
+OPEN (carried):
+- [ ] Seal Task 1 online build + Task 2 KSP compile (BUILD SUCCESSFUL or error)
+- [ ] Real SUPABASE_URL + anon key before Task 3 test
+================================================================================
+================================================================================
+PHASE 2 — PART 3: SupabaseConfig.kt (Task 3) — DONE (code) / VALUES PENDING
+Date: 2026-09-26
+Status: IMPLEMENTED — read-back verified; compiles standalone (no Ktor import)
+Plan: docs/Phase2_Android_Sync_Plan.md Task 3
+
+WHAT WAS DONE IN TASK 3 (1 new file, 67 lines):
+- data/sync/SupabaseConfig.kt (new package com.example.tindago.data.sync):
+  object SupabaseConfig — Project URL + anon key constants (PLACEHOLDERS) +
+  SharedPreferences session store (tindago_sync_prefs): saveSession(
+  accessToken, refreshToken, uid, email) + getToken/getRefreshToken/getUid/
+  getEmail + isLoggedIn + logout + saveLastSyncTime/getLastSyncTime.
+  Fix vs draft: stores refresh_token + user.id, not just access_token —
+  needed for user_id row scoping (Task 5) + future token refresh.
+  Zero deps: only android.content + SharedPreferences. No Ktor import, so
+  Task 1 resolution risk does not block this file.
+
+WHAT WAS NOT DONE:
+- Real SUPABASE_URL + SUPABASE_ANON_KEY still placeholders
+  (https://YOUR_PROJECT_ID.supabase.co / YOUR_ANON_KEY_HERE). No caller yet
+  (SyncRepository lands in Task 5). Nothing reads these prefs yet.
+
+AFFECTED FILES (live, git copy):
+- app/src/main/java/com/example/tindago/data/sync/SupabaseConfig.kt (new)
+
+VERIFICATION:
+- Read-back OK: 67 lines, package + object + all 8 methods present.
+- Compile: trivially safe (no new imports beyond android.content); sealed
+  with the pending Task 1/2 Gradle build.
+- Next: Task 4 (run 10-table SQL in Supabase dashboard) THEN Task 5
+  (SyncRepository) — needs real URL + anon key + auth user.
+
+OPEN (carried):
+- [ ] Seal Task 1 online build + Task 2 KSP compile
+- [ ] Paste real SUPABASE_URL + anon key (Dashboard → Settings → API)
+- [ ] Create Supabase Auth user for sign-in test (e.g. tindago@test.com)
+================================================================================
+================================================================================
+PHASE 2 — PART 4: Supabase SQL Schema v2 (Task 4) — SCRIPT FINALIZED
+Date: 2026-09-26
+Status: v2 SCRIPT SEALED IN PLAN — dashboard RUN still to confirm
+Plan: docs/Phase2_Android_Sync_Plan.md Task 4 (supersedes v1 draft)
+
+WHAT HAPPENED:
+- User found a PRE-EXISTING 12-table schema in the Supabase dashboard
+  (products/sales/debts/payments/txns/expenses/daily/eod/restock/sms +
+  suppliers + store_settings, with synced_at + USING(true) RLS).
+- v1 plan draft (single-column PKs + bare user_id, no RLS) was WRONG for
+  multi-store: upsert on id-only PK still overwrites across stores; and
+  store_settings(id=1) / date PKs collide across users.
+- User ran DROP TABLE ... CASCADE on the fresh dev DB → "Success. No rows
+  returned" (correct — DDL returns nothing). Old tables gone.
+- v2 script written to plan file: composite PKs (user_id, id) / (user_id,
+  date), user_id FK with ON DELETE CASCADE, composite FKs for
+  payments/txns → debts, per-user indexes, synced_at kept, suppliers kept,
+  store_settings re-keyed to user_id PK (one row per user, web-managed, NOT
+  phone-synced), RLS auth.uid() = user_id (replaces USING(true)).
+
+AFFECTED FILES (live, git copy):
+- docs/Phase2_Android_Sync_Plan.md (Task 4 section replaced v1 → v2)
+
+VERIFICATION:
+- Plan read-back: v2 header + 12 tables + RLS block present.
+- Dashboard RUN of v2 script still to confirm (expect again "Success. No
+  rows returned", then 12 tables visible in Table Editor).
+- Next: Task 5 SyncRepository (sends user_id per row already; needs
+  getUid() non-null from sign-in) — needs real URL + anon key + auth user.
+
+OPEN (carried):
+- [ ] Confirm v2 script RUN in dashboard (12 tables visible, products PK = (user_id, id))
+- [ ] Seal Task 1 online build + Task 2 KSP compile
+- [ ] Paste real SUPABASE_URL + anon key + create Auth user
+================================================================================
+================================================================================
+PHASE 2 — PART 5: SyncRepository.kt (Task 5) — DONE (code) / BUILD PENDING
+Date: 2026-09-26
+Status: IMPLEMENTED — read-back verified; Ktor compile seal pending (Task 1 risk)
+Plan: docs/Phase2_Android_Sync_Plan.md Task 5 (matches schema v2)
+
+WHAT WAS DONE IN TASK 5 (1 new file, ~300 lines):
+- data/sync/SyncRepository.kt (new): HttpClient(Android, 15s/30s timeouts)
+  + close() + signIn(email, password) via POST auth/v1/token?grant_type=
+  password (parses access_token + refresh_token + user.id → saveSession)
+  + syncAll() pushes 10 tables (skips empties, Prefer:
+  resolution=merge-duplicates, saves last-sync time) + upsertTable() throws
+  "Failed to sync <table>: <status> — <body>" on non-2xx + uid() helper.
+- 10 snake_case converters, every row carries user_id: productsToJson,
+  salesToJson, debtsToJson, paymentsToJson, debtTransactionsToJson,
+  expensesToJson, dailyEntriesToJson (Task 2 suspend, no .first()),
+  endOfDayToJson (Task 2 suspend, no .first()), restockLogToJson (String id
+  → text column), smsLogToJson. All DAO accessors match AppDatabase.kt.
+  store_settings intentionally NOT synced (web-managed).
+
+AFFECTED FILES (live, git copy):
+- app/src/main/java/com/example/tindago/data/sync/SyncRepository.kt (new)
+
+VERIFICATION:
+- Read-back OK: header/auth/sync/upsert/converters present (lines 1-60 spot-checked).
+- COMPILE NOT SEALED: first file importing io.ktor.* — Task 1 Ktor 2.3.12 vs
+  Kotlin 2.0.21 resolution risk surfaces here. Seal with online
+  ./gradlew :app:assembleDebug (Android Studio: Build → Make Project, online).
+- Runtime needs: v2 SQL RUN + real URL/key + Auth user + getUid() non-null.
+- Next: Task 6 (AppViewModel.initSync + NavGraph wiring).
+
+================================================================================
+PHASE 2 — PART 6: AppViewModel.initSync + NavGraph wiring (Task 6) — DONE
+Date: 2026-09-26
+Status: IMPLEMENTED — read-back verified
+Plan: docs/Phase2_Android_Sync_Plan.md Task 6 (corrected pattern)
+Note: user confirmed BUILD FINE after Task 5 → Ktor 2.3.12 resolves on
+Kotlin 2.0.21. Task 1/2/5 compile risk RETIRED. HttpURLConnection fallback
+NOT needed.
+
+WHAT WAS DONE IN TASK 6 (2 files):
+1) ui/screens/AppViewModel.kt:
+   - imports: android.content.Context + AppDatabase + SupabaseConfig + SyncRepository.
+   - new block after `private var repository` (lines 525-589): private
+     syncRepo/appContext + syncStatus/isSyncing/isLoggedIn flows +
+     initSync(context, db) [idempotent, mirrors initRepository] +
+     checkLoginStatus/signIn/syncNow [isSyncing guard]/signOut +
+     onCleared() → syncRepo?.close().
+   - NOT AndroidViewModel: plain ViewModel kept, so 15+ previews using
+     remember { AppViewModel() } keep working (syncRepo null → UI no-ops).
+2) ui/navigation/NavGraph.kt (line 81): LaunchedEffect now calls
+   initRepository(repository) + initSync(context, app.database).
+
+AFFECTED FILES (live, git copy):
+- app/src/main/java/com/example/tindago/ui/screens/AppViewModel.kt
+- app/src/main/java/com/example/tindago/ui/navigation/NavGraph.kt
+
+VERIFICATION:
+- Read-back OK: AppViewModel:525-589 + NavGraph:79-82.
+- User sealed build post-Task 5 (BUILD FINE).
+- Next: Task 7 (CloudSyncSection in SettingsScreen, nullable VM).
+
+OPEN (carried):
+- [ ] Task 7 UI + sign-in/sync runtime test (needs v2 SQL RUN + real URL/key + Auth user)
+- [ ] Confirm v2 SQL RUN (12 tables, products PK = (user_id, id))
+================================================================================
+================================================================================
+PHASE 2 — PART 7: CloudSyncSection UI (Task 7) — DONE → PHASE 2 CODE COMPLETE
+Date: 2026-09-26
+Status: IMPLEMENTED — read-back verified; runtime test pending (Supabase side)
+Plan: docs/Phase2_Android_Sync_Plan.md Task 7
+
+WHAT WAS DONE IN TASK 7 (1 file, +~110 lines):
+- ui/screens/SettingsScreen.kt:
+  1) import PasswordVisualTransformation (line 30).
+  2) Cloud Sync card placed FIRST in scroll column (lines 174-178), above
+     Store Profile + Display + Notifications + Support + SMS + Backup + Data.
+  3) New CloudSyncSection(viewModel: AppViewModel?) at file end (~1092-1192):
+     nullable VM (preview passes null → early return, no crash);
+     LaunchedEffect → checkLoginStatus; logged-out = email (Email keyboard)
+     + password (masked + Password keyboard) + Sign In; logged-in =
+     Connected + Sync Now (disabled + spinner while isSyncing) + Sign Out;
+     status line (red on "fail", muted otherwise). Card style matches
+     CollapsibleSection (surface, 12dp, 1dp elevation).
+
+AFFECTED FILES (live, git copy):
+- app/src/main/java/com/example/tindago/ui/screens/SettingsScreen.kt
+
+VERIFICATION:
+- Read-back OK: call site 174-178 + composable present.
+- Compile: user sealed post-Task 5; Task 6/7 touch only Compose + VM (no new
+  deps) — re-seal with Build → Make Project.
+- Runtime test (needs v2 SQL RUN + real URL/key + Auth user):
+  1) Settings → sign in → "Signed in as ..."; 2) Sync Now → "Synced N tables";
+  3) Table Editor shows phone rows; 4) airplane-mode sale → online sync.
+
+PHASE 2 CODE STATUS: ALL 7 TASKS IMPLEMENTED (Tasks 1,2,3,5,6,7 in app +
+Task 4 v2 SQL script in plan). Remaining is SUPABASE-SIDE + RUNTIME, not code.
+
+OPEN (all Supabase-side / runtime):
+- [ ] Final Build → Make Project seal (Tasks 6+7)
+- [ ] v2 SQL RUN (12 tables, products PK = (user_id, id))
+- [ ] Real SUPABASE_URL + anon key wired into SupabaseConfig.kt
+================================================================================
+PHASE 2 — PART 8: Credentials wired (Task 3 seal) — REBUILD REQUIRED
+Date: 2026-09-26
+Status: SupabaseConfig.kt now holds REAL project URL + anon key
+Trigger: user hit Login failed — Unable to resolve host
+  "your_project_id.supabase.co" (expected: placeholders still compiled in).
+
+WHAT WAS DONE (1 file, 3 lines):
+- data/sync/SupabaseConfig.kt:12-14 — replaced YOUR_PROJECT_ID /
+  YOUR_ANON_KEY_HERE with https://gncnluxjrpmbjmtzcwsv.supabase.co (bare host,
+  NO /rest/v1/ suffix — SyncRepository appends /auth/v1 + /rest/v1 itself) +
+  anon eyJ..._Ris. Comment updated to "wired 2026-09-26".
+- docs/Phase2_Android_Sync_Plan.md Task 4: added idempotent DROP POLICY IF
+  EXISTS guard before the RLS block (42710 fix from user's partial v2 run).
+
+AFFECTED FILES (live, git copy):
+- app/src/main/java/com/example/tindago/data/sync/SupabaseConfig.kt
+- docs/Phase2_Android_Sync_Plan.md (RLS guard)
+
+WHY REBUILD IS MANDATORY:
+- const val is COMPILE-TIME inlined: the running APK still contains the fake
+  hostname. No settings toggle can fix it — only a rebuild + reinstall.
+- Android Studio → Build → Make Project → Run (device online) → Settings →
+  Cloud Sync → Sign In. The UnknownHost error MUST disappear; next possible
+  errors are credential-side (Invalid login credentials / Email not
+  confirmed), which mean the Auth user needs fixing in the dashboard.
+
+SCREENSHOT ISSUE (separate from sync):
+- Cannot diagnose from repo. Usual causes: (a) emulator — camera/screen-
+  capture permission revoked on host; use Device Manager → Camera icon, or
+  adb shell screencap -p /sdcard/s.png + pull; (b) physical device —
+  FLAG_SECURE on the screen (banking/DRM apps) blanks captures, or USB
+  debugging re-auth needed; (c) Android Studio — "Screenshot" tool needs the
+  device ONLINE in Device Manager (offline → blank button). Try Logcat tab →
+  camera icon, or plain OS screenshot (Win+Shift+S) as fallback. If it
+  worked before and broke now, suspect (c): reconnect/revoke USB auth.
+
+OPEN (carried):
+- [ ] Make Project + Run (online) → Sign In → Sync Now → Table Editor verify
+- [ ] Confirm 12 tables + policies (run guard script if 42710 seen again)
+- [ ] Auth user exists + email confirmed
+================================================================================
+- [ ] Auth user + sign-in → sync → Table Editor → offline-sale test
+================================================================================
+OPEN (carried):
+- [ ] Seal online build (Ktor resolution: BUILD SUCCESSFUL or fallback to HttpURLConnection)
+- [ ] Confirm v2 SQL RUN (12 tables, products PK = (user_id, id))
+- [ ] Paste real SUPABASE_URL + anon key + create Auth user
+================================================================================
+================================================================================
+PHASE 2 — PART 9: RUNTIME VERIFICATION COMPLETE & SEALED
+Date: 2026-09-27
+Status: VERIFIED & SEALED — Mobile → Supabase cloud bridge is fully live!
+Trigger: User completed end-to-end sync verification test on mobile device.
+
+TEST RESULTS & VERIFICATION:
+1) Sign In: Successful authentication using real Supabase Auth credentials.
+   - Host resolution succeeded with real project URL (gncnluxjrpmbjmtzcwsv.supabase.co).
+   - Auth token, refresh token, and user.id successfully stored in SharedPreferences.
+2) Sync: One-tap "Sync Now" pushed local Room records to Supabase cloud tables.
+3) Cloud Inspection: Verified in Supabase Table Editor that records (products, sales, etc.)
+   exist and are tagged with the matching user_id under Schema v2 composite PKs.
+4) Offline Architecture Integrity: Android app retains 100% offline-first capability.
+   Local Room DB is the single source of truth at counter; cloud sync is manual push.
+
+PHASE 2 STATUS: 100% COMPLETE & VERIFIED.
+Next: Phase 3 — Back-Office Web Portal (isolated backoffice/ folder).
+================================================================================
+================================================================================
+SUPABASE PROJECT REFERENCE (PHASE 2 & PHASE 3)
+================================================================================
+Project URL: https://gncnluxjrpmbjmtzcwsv.supabase.co
+Anon Public Key:
+  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduY25sdXhqcnBtYmptdHpjd3N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MTcwODAsImV4cCI6MjEwNTk5MzA4MH0.Ynto-Kz-CdIrE9jqJT2s-PJtiGFIYzr4Qg9hC16_Ris
+Schema Version: Schema v2 (12 tables with composite primary keys (user_id, id) / (user_id, date))
+RLS Policy: auth.uid() = user_id for all operations
+================================================================================
+
+================================================================================
+PROGRESS.TXT FREEZE-PLACEMENT FIX (LOG AUDIT) — DONE
+Date: 2026-09-27
+Status: FIXED & VERIFIED (git-proven: 0 lines deleted, history intact)
+Type: Log-integrity repair only — no Android app code touched
+--------------------------------------------------------------------------------
+QUESTION RAISED: "The notice says it is at the exact end of ../progress.txt
+(line 1274) — then why is there still text below that line?"
+
+CAUSE (proven with git, not guessed):
+- Auditing the freeze, `git diff -U0 -- progress.txt` vs HEAD showed exactly one
+  insertion hunk and ZERO deletions:
+      @@ -1225,0 +1226,60 @@  Stage 6 — Clean Build SEALED
+- Meaning: a single 60-line block had been INSERTED after line 1225 — which is in
+  the MIDDLE of the V2.2 "Stage 6 — Clean Build SEALED" verification block (right
+  after the "37 tasks: 8 executed ... kspDebugKotlin UP-TO-DATE" log line), not at
+  the end of the file. The 60 inserted lines were the PHASE 2 — PART 1 entry, the
+  freeze banner, and the "OPEN (carried)" list.
+- Consequence: every line that already existed after 1225 was pushed down and left
+  stranded BENEATH the "frozen" notice — 260 lines: Stage-6 tail, ALGORITHM 12,
+  FILES TOUCHED, VERIFICATION, FUTURE PLANS, plus the Sep 25/26 mobile entries
+  (EXPENSES CATEGORY DROPDOWN FIX, STAGE 7 SMOKE — DEVICE, INVENTORY
+  SEARCH-CONTROL REMOVED, SEARCH-CONTROL RE-ADDED).
+- The banner's own text "(LINE 1274)" was self-referential: 1274 was the banner's
+  line number inside the freshly inserted block, which the edit assumed was the
+  end of the file. The file was 1506 lines long at that moment, so the claim was
+  false by 232 lines. Nothing after the banner was "new" — it was all pre-existing
+  history that the insertion had displaced.
+
+FIX (applied to ../progress.txt only):
+1) Relocated the 60-line inserted block to the TRUE end of the file, restoring the
+   original order byte-for-byte (V2.2 -> Sep 26 entries -> Phase 2 Part 1).
+2) Re-ordered inside that block so the freeze banner comes AFTER the
+   "OPEN (carried)" list — the banner is now the last thing in the file.
+3) Rewrote the banner: no stale line number; it now states it is the final block
+   (lines 1510-1517 of 1517) and why the earlier placement was wrong.
+4) Added a 7-line "!! FROZEN FILE !!" pointer at the top (line 7) so anyone
+   reading the head of the file is redirected here (progress2.txt).
+5) Historical body untouched: no entry text edited, reworded, or removed.
+
+VERIFICATION:
+- git diff --stat progress.txt -> 1 file changed, 71 insertions(+), 0 deletions(-)
+- Only two hunks remain, both pure insertions:
+      @@ -6,0 +7,7 @@         (top FROZEN pointer)
+      @@ -1446,0 +1454,64 @@  (relocated Phase-2 block + final freeze banner)
+- progress.txt: 1517 lines, CRLF preserved, UTF-8 no BOM, last line "====".
+- Seam repaired: progress.txt:1232 "37 tasks: 8 executed ..." is again immediately
+  followed by progress.txt:1233 "Expecting ',' False  ksp FAILED False".
+- Tail re-read: ..., "OPEN (carried)" 3 unchecked items, separator, then the
+  8-line freeze banner as the final block; nothing below it.
+- Pre-fix copies (outside the repo, so git stays clean):
+    C:\temp\progress_txt_backups\progress.txt.bak-20260927   (74787 b)
+    C:\temp\progress_txt_backups\progress.txt.bak2-20260927  (75397 b)
+- This file's header Note (line 6) corrected from "1225+ lines" to "1517 lines".
+
+Next: Phase 3 — Task 9 login.html (renumbered 8->9 on 2026-09-27; see git/TindaGo/progress.txt).
+================================================================================
+
+

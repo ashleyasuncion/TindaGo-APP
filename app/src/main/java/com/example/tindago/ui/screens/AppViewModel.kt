@@ -5,10 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import com.example.tindago.data.*
 import com.example.tindago.data.backup.BackupManager
 import com.example.tindago.data.backup.BackupResult
 import com.example.tindago.data.backup.BackupSerializer
+import com.example.tindago.data.local.AppDatabase
+import com.example.tindago.data.sync.SupabaseConfig
+import com.example.tindago.data.sync.SyncRepository
 import com.example.tindago.ui.localization.AppSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -517,6 +521,72 @@ class AppViewModel : ViewModel() {
 
     // ── Database persistence (Phase 4) ─────────────────────────────────
     private var repository: AppRepository? = null
+
+    // ── Cloud sync (Phase 2 — Supabase push, offline-first unchanged) ──
+    private var syncRepo: SyncRepository? = null
+    private var appContext: Context? = null
+
+    val syncStatus = MutableStateFlow<String?>(null)
+    val isSyncing = MutableStateFlow(false)
+    val isLoggedIn = MutableStateFlow(false)
+
+    /**
+     * Mirrors initRepository(): called once from NavGraph with the
+     * application context + Room singleton. Idempotent.
+     * Kept separate so previews (remember { AppViewModel() }) keep working —
+     * no AndroidViewModel conversion.
+     */
+    fun initSync(context: Context, db: AppDatabase) {
+        if (syncRepo == null) {
+            appContext = context.applicationContext
+            syncRepo = SyncRepository(appContext!!, db)
+        }
+    }
+
+    fun checkLoginStatus() {
+        val ctx = appContext ?: return
+        isLoggedIn.value = SupabaseConfig.isLoggedIn(ctx)
+    }
+
+    fun signIn(email: String, password: String) {
+        val repo = syncRepo ?: return
+        viewModelScope.launch {
+            syncStatus.value = "Signing in..."
+            repo.signIn(email.trim(), password)
+                .onSuccess { msg ->
+                    syncStatus.value = msg
+                    isLoggedIn.value = true
+                }
+                .onFailure { e ->
+                    syncStatus.value = "Login failed: ${e.message}"
+                }
+        }
+    }
+
+    fun syncNow() {
+        val repo = syncRepo ?: return
+        if (isSyncing.value) return
+        viewModelScope.launch {
+            isSyncing.value = true
+            syncStatus.value = "Syncing..."
+            repo.syncAll()
+                .onSuccess { msg -> syncStatus.value = msg }
+                .onFailure { e -> syncStatus.value = "Sync failed: ${e.message}" }
+            isSyncing.value = false
+        }
+    }
+
+    fun signOut() {
+        val ctx = appContext ?: return
+        SupabaseConfig.logout(ctx)
+        isLoggedIn.value = false
+        syncStatus.value = "Signed out"
+    }
+
+    override fun onCleared() {
+        syncRepo?.close()
+        super.onCleared()
+    }
 
     /**
      * Initialize Room database — loads saved data and sets up auto-save.

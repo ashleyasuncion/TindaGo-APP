@@ -78,6 +78,7 @@ fun NavGraph(
     }
     LaunchedEffect(Unit) {
         appViewModel.initRepository(repository)
+        appViewModel.initSync(context, app.database)
     }
 
     // Restore persisted day state after the ViewModel is ready

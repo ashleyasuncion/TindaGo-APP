@@ -80,6 +80,10 @@ dependencies {
     // WorkManager (V2.70 — local notifications)
     implementation(libs.work.runtime.ktx)
 
+    // Supabase sync (Phase 2 — Ktor wraps HttpURLConnection, no native code)
+    implementation("io.ktor:ktor-client-core:2.3.12")
+    implementation("io.ktor:ktor-client-android:2.3.12")
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

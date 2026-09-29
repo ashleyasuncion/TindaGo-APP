@@ -298,6 +298,12 @@ class AppViewModel : ViewModel() {
         dayDate = settings.dayDate
         dayArchived = settings.dayArchived
         _reportPeriod.value = settings.reportPeriod
+
+        // Phase 4.2 — Auto-open: clean launch can sell immediately (no morning tap needed).
+        // Stale open days are NOT auto-opened — they require explicit owner action via snackbar.
+        if (!dayOpen && !isStaleOpenDay()) {
+            openDay()
+        }
     }
 
     /** Save current day state to AppSettings so it survives app restart */
@@ -326,6 +332,8 @@ class AppViewModel : ViewModel() {
      *  Actual Sales input or the Day mode stat.
      */
     fun openDay() {
+        if (dayOpen) return
+        if (isStaleOpenDay()) return
         dayOpen = true
         dayDate = today
         dayArchived = false

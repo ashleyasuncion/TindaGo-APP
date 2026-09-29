@@ -21,6 +21,8 @@ import com.example.tindago.ui.components.LocalTutorialHighlightState
 import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
+import com.example.tindago.data.LocalSnackbarHost
+import com.example.tindago.data.LocalSnackbarScope
 import com.example.tindago.ui.localization.t
 import com.example.tindago.ui.theme.*
 import com.example.tindago.ui.theme.TindaGoTheme
@@ -102,6 +104,25 @@ fun MorningCheckScreen(
             showDevConfirmDialog = true
         } else {
             onCloseStaleDayAndStartToday()
+        }
+    }
+
+    // Phase 4.2 — one-tap stale resolution: indefinite snackbar with OK (never auto-archive).
+    // Checkout stays usable while this is pending (NavGraph CHECKOUT guard is relaxed).
+    val snackbarHost = LocalSnackbarHost.current
+    val snackbarScope = LocalSnackbarScope.current
+    LaunchedEffect(isStaleOpen) {
+        if (isStaleOpen) {
+            val result = snackbarHost.showSnackbar(
+                message = "staleBannerMessage".t(lang),
+                actionLabel = "ok".t(lang),
+                duration = SnackbarDuration.Indefinite,
+                withDismissAction = true
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.closeStaleDayAndStartToday()
+                snackbarHost.showSnackbar("dayStartedToday".t(lang).replace("{date}", viewModel.today))
+            }
         }
     }
 

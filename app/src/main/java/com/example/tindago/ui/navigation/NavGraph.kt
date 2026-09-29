@@ -482,17 +482,16 @@ fun NavGraph(
                 }
             }
 
-            // ── Standalone Checkout (web v2.64 parity — replaces the sale sheet overlay) ──
+            // ── Standalone Checkout (Phase 4.2 — checkout stays usable while stale is pending)
             composable(Routes.CHECKOUT) {
                 val lang = LocalLanguage.current.value
-                // Entry guard: checkout requires an open, non-stale day. Skipped
-                // during the tutorial flow (same pattern as Day Mode). The message
-                // is routed through the screen (it owns its snackbar host).
+                // Entry guard: Phase 4.2 relaxes CHECKOUT — a stale open day no longer blocks
+                // selling. Only truly closed days (dayOpen==false && not stale) still block.
+                // DAY/CLOSING keep the strict guard (!dayOpen || stale) below.
                 var blockedMessage by remember { mutableStateOf<String?>(null) }
                 LaunchedEffect(Unit) {
-                    if (!tutorialActive && (!appViewModel.dayOpen || appViewModel.isStaleOpenDay())) {
-                        blockedMessage = if (appViewModel.isStaleOpenDay())
-                            "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
+                    if (!tutorialActive && !appViewModel.dayOpen && !appViewModel.isStaleOpenDay()) {
+                        blockedMessage = "dayNotOpen".t(lang)
                     }
                 }
                 CheckoutScreen(

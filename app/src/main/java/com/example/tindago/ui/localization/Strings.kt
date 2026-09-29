@@ -945,6 +945,8 @@ object Strings {
         "overdueReviewTotal" to "Total",
         "overdueArchivedToast" to "Previous day closed. New day started!",
         "overdueDevConfirm" to "A developer date override is active. This archives the previous day's sales into real history — permanent if the app is closed before clearing the override. Continue?",
+        "staleBannerMessage" to "Yesterday was not closed. Close it and start today?",
+        "dayStartedToday" to "Day started — {date}",
         "ok" to "OK",
 
         // ── Restock Day ──
@@ -1951,6 +1953,8 @@ object Strings {
         "overdueReviewTotal" to "Kabuuan",
         "overdueArchivedToast" to "Naisara ang nakaraang araw. Nagsimula na ang bagong araw!",
         "overdueDevConfirm" to "Aktibo ang developer date override. Aarkibuhin nito ang benta ng nakaraang araw sa totoong history — permanente ito kung isasara ang app bago i-clear ang override. Magpatuloy?",
+        "staleBannerMessage" to "Hindi nasara ang kahapon. Isara at mag-simula ngayon?",
+        "dayStartedToday" to "Araw na nagsimula — {date}",
         "ok" to "OK",
 
         // ── Restock Day (FIL) ──

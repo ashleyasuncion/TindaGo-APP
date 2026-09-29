@@ -3,6 +3,8 @@ package com.example.tindago.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -75,6 +77,7 @@ fun CheckoutScreen(
     val debts by viewModel.debts.collectAsState()
     val cart by viewModel.saleCart.collectAsState()
     val payment by viewModel.salePayment.collectAsState()
+    val quickSell by viewModel.quickSellProducts.collectAsState()
 
     // Checkout is a standalone route (not wrapped in MainScaffold), so it owns
     // its own snackbar host + scope and provides them for the whole screen.
@@ -298,6 +301,30 @@ fun CheckoutScreen(
                         modifier = Modifier.tutorialHighlight("checkoutSearch", highlightState)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
+
+                    // ── Quick-Sell (Phase 4.1) — 1-tap bestsellers above search ──
+                    if (quickSell.isNotEmpty()) {
+                        Text(
+                            "mabilisangBenta".t(lang),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(quickSell, key = { it.id }) { product ->
+                                SuggestionChip(
+                                    onClick = {
+                                        if (viewModel.addToCart(product, 1)) {
+                                            snackbarScope.launch { snackbarHostState.showSnackbar("addedToCart".t(lang)) }
+                                        }
+                                    },
+                                    label = { Text(product.name + " · ₱" + String.format("%.2f", product.sellingPrice) + " (" + product.quantity + ")") }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
                     // index.html Sections 2A+2B+2C morphing drill-down field
                     CategorySearchField(
                         searchQuery = productQuery,

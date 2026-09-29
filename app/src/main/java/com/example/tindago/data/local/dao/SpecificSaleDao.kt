@@ -18,6 +18,9 @@ interface SpecificSaleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSales(sales: List<SpecificSaleEntity>)
 
+    @Query("SELECT description FROM specific_sales GROUP BY description ORDER BY SUM(quantity) DESC LIMIT :limit")
+    fun getTopSellingDescriptions(limit: Int = 8): Flow<List<String>>
+
     @Query("DELETE FROM specific_sales")
     suspend fun deleteAll()
 }

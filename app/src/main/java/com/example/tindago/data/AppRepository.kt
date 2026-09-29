@@ -66,6 +66,9 @@ class AppRepository(
 
     suspend fun deleteAllSpecificSales() = specificSaleDao.deleteAll()
 
+    fun getTopSellingNames(limit: Int = 8): Flow<List<String>> =
+        specificSaleDao.getTopSellingDescriptions(limit)
+
     // ── Debts ───────────────────────────────────────────────────────────
     fun getAllDebts(): Flow<List<CustomerDebt>> =
         customerDebtDao.getAllDebts().map { entities -> entities.map { it.toDomainModel() } }

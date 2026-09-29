@@ -53,6 +53,10 @@ class AppViewModel : ViewModel() {
     /** Expense log (web V2.71 parity) — all store expenses, newest first. */
     val expenses: StateFlow<List<Expense>> = _expenses.asStateFlow()
 
+    // ── Quick-Sell (Phase 4.1) — top sellers ranked by SUM(quantity) ─────────
+    private val _quickSellProducts = MutableStateFlow<List<Product>>(emptyList())
+    val quickSellProducts: StateFlow<List<Product>> = _quickSellProducts.asStateFlow()
+
     private val _endOfDayData = MutableStateFlow<EndOfDayData?>(null)
     val endOfDayData: StateFlow<EndOfDayData?> = _endOfDayData.asStateFlow()
 
@@ -650,6 +654,22 @@ class AppViewModel : ViewModel() {
         viewModelScope.launch {
             _expenses.collect { list ->
                 list.forEach { repo.saveExpense(it) }
+            }
+        }
+
+        // Phase 4.1 — Quick-Sell: rank by SUM(quantity) via DAO, map back to Product,
+        // filter out-of-stock, pad with in-stock catalog when fewer than 8 ranked.
+        // Previews never call initRepository() so they see emptyList() — safe.
+        viewModelScope.launch {
+            repo.getTopSellingNames().collect { names ->
+                val byName = _products.value.associateBy { it.name }
+                val ranked = names.mapNotNull { byName[it] }.filter { it.quantity > 0 }
+                val padded = if (ranked.size < 8) {
+                    val remaining = _products.value.filter { it.quantity > 0 && it !in ranked }
+                        .sortedByDescending { it.quantity }.take(8 - ranked.size)
+                    ranked + remaining
+                } else ranked
+                _quickSellProducts.value = padded.take(8)
             }
         }
     }

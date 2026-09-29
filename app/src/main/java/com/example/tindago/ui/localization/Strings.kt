@@ -478,6 +478,7 @@ object Strings {
 
         // ── Checkout (web v2.63/v2.64 parity) ──
         "checkoutTitle" to "Checkout",
+        "mabilisangBenta" to "Quick Sell",
         "addToCart" to "Add to Cart",
         "cartTitle" to "Cart",
         "cartEmpty" to "Cart is empty — add a product to start.",
@@ -1483,6 +1484,7 @@ object Strings {
 
         // ── Checkout (web v2.63/v2.64 parity) ──
         "checkoutTitle" to "Checkout",
+        "mabilisangBenta" to "Mabilisang Benta",
         "addToCart" to "Idagdag sa Cart",
         "cartTitle" to "Cart",
         "cartEmpty" to "Walang laman ang cart — magdagdag ng produkto para magsimula.",

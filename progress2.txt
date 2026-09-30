@@ -422,3 +422,42 @@ Next: Phase 3 — Task 9 login.html (renumbered 8->9 on 2026-09-27; see git/Tind
 ================================================================================
 
 
+================================================================================
+PHASE 4 -- MOBILE COUNTER STREAMLINING (Tasks 4.1-4.4) -- DONE & SEALED
+Date: 2026-09-30
+Status: IMPLEMENTED + VERIFIED + SEALED (build green, docs frozen, git clean)
+Plan: docs/Phase4_Mobile_Counter_Streamlining_Plan.md (40L frozen 2026-09-28)
+      + docs/Phase4/Task_4.1_Quick_Sell_Grid.md (96L) + Task_4.2 (107L)
+      + Task_4.3_Smart_Utang.md (134L) + Task_4.4_Navigation.md (92L)
+      + Execution_Rollback_Demo.md (80L)
+Type: Offline-first smart counter -- 0 migration, 0 network, reversible
+--------------------------------------------------------------------------------
+GOAL: notebook -> smart counter. 1-tap bestsellers (4.1), auto-open + stale never blocks sale (4.2),
+  utang chips+warning (4.3), Sell FAB 64dp hero (4.4).
+
+WHAT WAS DONE (3 commits, BUILD SUCCESSFUL in 58s):
+  c04954c Add quick-sell bestseller flow (4.1) 5 files +55
+    SpecificSaleDao: SELECT description GROUP BY SUM(quantity) DESC LIMIT 8
+    AppRepository: getTopSellingNames() | AppViewModel: _quickSellProducts take(8) padded
+    CheckoutScreen LazyRow SuggestionChip addToCart(product,1) | Strings mabilisangBenta
+  e816d0a Relax stale-day checkout flow (4.2) 5 files +39
+    AppViewModel openDay/closeStaleDayAndStartToday + Morning snackbar staleBannerMessage OK->dayStartedToday
+    NavGraph CHECKOUT exempt when stale (only block if !dayOpen && !isStale), DAY/CLOSING still blocked
+  93cfcd3 feat(phase4): navigation refresh (Sell hero 64dp) + smart utang (4.3+4.4) 7 files +111 -63
+    VM recentDebtors filtered remainingBalance>0 take5 | Checkout chips + creditLimitWarning amber
+    BottomNavBar FAB 64dp primary ShoppingCart 28dp (onSaleFabClick bypasses stale guard), muted Morning 20dp gray
+    DayModeScreen hero FAB centered 64dp above stats grid | NavGraph optional auto-advance OFF (commented)
+
+CONSTRAINTS KEPT: Room v12 no migration, VM no-arg ctor, .t(lang) en+fil, offline, previews compile.
+
+VERIFICATION 2026-09-30 Act Step0+6:
+  ./gradlew :app:assembleDebug BUILD SUCCESSFUL in 58s (37 tasks 7 executed, KSP/Room OK, config cache stored)
+  search_codebase verified: getTopSellingDescriptions, closeStaleDayAndStartToday, recentDebtors, mabilisangBenta
+  airplane ON smoke: auto-open fresh, stale banner+OK archives, CHECKOUT while stale, quick-sell tap, Utang 5 chips+amber, FAB 64dp
+  .kotlin/sessions/*.salive dedusted via git rm --cached + .gitignore (.kotlin + /app/build)
+
+ROLLBACK: git revert c04954c (4.1) / e816d0a (4.2) / 93cfcd3 (4.3+4.4 bundled) -- each green, no downgrade
+DOCS: 6 files 565 insertions staged, split to avoid 6000-char scramble (keep split recommended)
+GIT: 3 code commits + 1 docs+dedust commit, history clean, build green
+NEXT: optional 2-min device smoke (airplane ON) then defense demo 60-90s per Execution_Rollback_Demo.md
+================================================================================

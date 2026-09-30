@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -109,6 +110,37 @@ fun DayModeScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ── Phase 4.4: Hero Sell FAB — most prominent, centered, primary 64.dp, above the fold ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .tutorialHighlight("sellFab", highlightState),
+            contentAlignment = Alignment.Center
+        ) {
+            FloatingActionButton(
+                onClick = onOpenSaleSheet,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                modifier = Modifier.size(64.dp)
+            ) {
+                Icon(
+                    Icons.Filled.ShoppingCart,
+                    contentDescription = "sell".t(lang),
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+        Text(
+            "sell".t(lang),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            textAlign = TextAlign.Center
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         // ── Stats grid ──

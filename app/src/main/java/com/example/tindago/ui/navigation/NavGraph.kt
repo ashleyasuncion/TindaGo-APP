@@ -86,6 +86,14 @@ fun NavGraph(
         appViewModel.initAppSettings(appSettings)
     }
 
+    // Optional — default OFF for manual demo. Uncomment to enable auto-advance when clean.
+    // LaunchedEffect(appViewModel.dayOpen, appViewModel.currentDate.value) {
+    //     if (appViewModel.dayOpen && !appViewModel.isStaleOpenDay()
+    //         && navController.currentDestination?.route == Routes.MORNING) {
+    //         navController.navigate(Routes.DAY) { popUpTo(Routes.MORNING) { inclusive = false } }
+    //     }
+    // }
+
     // Keep the observable current date in sync whenever the app returns to the
     // foreground — so the Morning overdue banner / Day & Closing guards recompute
     // after a real calendar day passes while the process stays alive (web parity).

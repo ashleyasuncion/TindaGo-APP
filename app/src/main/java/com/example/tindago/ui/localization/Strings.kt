@@ -748,6 +748,8 @@ object Strings {
         "creditWarnOver" to "⛔ This would put {name} at {total} — over their {limit} credit limit",
         "creditWarnAtLimit" to "⛔ {name} is at their {limit} credit limit",
         "creditAllowAnyway" to "Allow anyway",
+        "recentDebtors" to "Recent customers with utang",
+        "creditLimitWarning" to "Over limit for {name} (limit P{limit}) — continue?",
         "overLimitDebtors" to "Over-limit debtors",
 
         // SMS Feature
@@ -1768,6 +1770,8 @@ object Strings {
         "creditWarnOver" to "⛔ Ilalagay nito si {name} sa {total} — lampas sa kanyang {limit} limit",
         "creditWarnAtLimit" to "⛔ Naabot na ni {name} ang kanyang {limit} limit ng utang",
         "creditAllowAnyway" to "Payagan pa rin",
+        "recentDebtors" to "Huling may utang",
+        "creditLimitWarning" to "Lagpas sa limit ni {name} (limit P{limit}) — ituloy?",
         "overLimitDebtors" to "Lampas sa limit ng utang",
 
         // SMS Feature

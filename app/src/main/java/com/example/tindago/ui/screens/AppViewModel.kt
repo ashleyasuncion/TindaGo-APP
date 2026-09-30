@@ -57,6 +57,10 @@ class AppViewModel : ViewModel() {
     private val _quickSellProducts = MutableStateFlow<List<Product>>(emptyList())
     val quickSellProducts: StateFlow<List<Product>> = _quickSellProducts.asStateFlow()
 
+    // ── Smart Utang (Phase 4.3) ─ recent debtors with outstanding balance ──
+    private val _recentDebtors = MutableStateFlow<List<CustomerDebt>>(emptyList())
+    val recentDebtors: StateFlow<List<CustomerDebt>> = _recentDebtors.asStateFlow()
+
     private val _endOfDayData = MutableStateFlow<EndOfDayData?>(null)
     val endOfDayData: StateFlow<EndOfDayData?> = _endOfDayData.asStateFlow()
 
@@ -678,6 +682,16 @@ class AppViewModel : ViewModel() {
                     ranked + remaining
                 } else ranked
                 _quickSellProducts.value = padded.take(8)
+            }
+        }
+
+        // Phase 4.3 ─ Smart Utang: derive recent debtors (no DAO migration) ──
+        // Filters out paid-off debts, newest first (higher id = newer), max 5.
+        // Previews never call initRepository() so they see emptyList() ─ safe.
+        viewModelScope.launch {
+            _debts.collect { all ->
+                _recentDebtors.value = all.filter { it.remainingBalance > 0 }
+                    .sortedByDescending { it.id }.take(5)
             }
         }
     }

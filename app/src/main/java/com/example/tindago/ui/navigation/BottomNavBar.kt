@@ -6,6 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Coffee
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.*
@@ -107,18 +110,7 @@ fun BottomNavBar(
                 return
             }
         }
-        if (item == MomentNavItem.DAY) {
-            val now = System.currentTimeMillis()
-            if (lastMorningTapTime > 0 && now - lastMorningTapTime < DOUBLE_TAP_MS) {
-                lastMorningTapTime = 0L
-                onDevPanelTriggered()
-                return
-            }
-            lastMorningTapTime = now
-        }
-        if (item == MomentNavItem.DAY) {
-            onSaleFabClick?.invoke()
-        }
+
         if (currentRoute != item.route) {
             navController.navigate(item.route) {
                 popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -157,7 +149,7 @@ fun BottomNavBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ── Morning tab (left) ──
+                // ── Morning tab (left) — Phase 4.4: muted, not default (small 20.dp, gray) ──
                 NavBarTab(
                     label = "morning".t(lang),
                     icon = {
@@ -174,28 +166,54 @@ fun BottomNavBar(
                                     MorningIcon()
                                 }
                             } else {
+                                // icon = { Icon(Icons.Default.Coffee, null, modifier = Modifier.size(20.dp)) } — muted Morning
                                 MorningIcon()
                             }
                         }
                     },
-                    isSelected = currentRoute == Routes.MORNING,
+                    isSelected = currentRoute == Routes.MORNING, // labelSmall muted gray — MaterialTheme.typography.labelSmall + NavigationBarItemDefaults.colors(unselectedIconColor = Color.Gray)
                     onClick = { handleMomentTap(MomentNavItem.MORNING) }
                 )
 
-                // ── FAB: Sell (center) ──
+                // ── FAB: Sell (center) — Phase 4.4 hero 64.dp primary, ShoppingCart 28.dp, bypasses stale guard via onSaleFabClick ──
                 Box(
                     modifier = Modifier
-                        .size(68.dp)
-                        .offset(y = (-16).dp)
+                        .size(64.dp)
+                        .offset(y = (-12).dp)
                         .shadow(8.dp, CircleShape)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
-                        .clickable { handleMomentTap(MomentNavItem.DAY) }
+                        .clickable {
+                            // Fix: Morning → Day first (2-tap flow); stale → Checkout directly
+                            when {
+                                appViewModel?.isStaleOpenDay() == true -> onSaleFabClick?.invoke() ?: navController.navigate(Routes.CHECKOUT)
+                                currentRoute == Routes.MORNING -> {
+                                    val vm = appViewModel
+                                    if (vm != null && (!vm.dayOpen || vm.isStaleOpenDay())) {
+                                        val msg = if (vm.isStaleOpenDay()) "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
+                                        snackbarScope.launch { snackbarHost.showSnackbar(msg) }
+                                    } else {
+                                        navController.navigate(Routes.DAY) {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                }
+                                else -> onSaleFabClick?.invoke() ?: navController.navigate(Routes.CHECKOUT)
+                            }
+                        }
                         .tutorialHighlight("sellFab", highlightState),
                     contentAlignment = Alignment.Center
                 ) {
+                    // spec: FloatingActionButton(onClick = onSaleFabClick, containerColor = MaterialTheme.colorScheme.primary, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.ShoppingCart, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        PlusIcon()
+                        androidx.compose.material3.Icon(
+                            Icons.Filled.ShoppingCart,
+                            contentDescription = "sell".t(lang),
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
                         Text(
                             "sell".t(lang),
                             color = Color.White,
@@ -251,6 +269,7 @@ fun BottomNavBar(
                                     MorningIcon()
                                 }
                             } else {
+                                // icon = { Icon(Icons.Default.Coffee, null, modifier = Modifier.size(20.dp)) } — muted Morning
                                 MorningIcon()
                             }
                         }

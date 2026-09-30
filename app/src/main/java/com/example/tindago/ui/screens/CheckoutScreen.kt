@@ -78,6 +78,7 @@ fun CheckoutScreen(
     val cart by viewModel.saleCart.collectAsState()
     val payment by viewModel.salePayment.collectAsState()
     val quickSell by viewModel.quickSellProducts.collectAsState()
+    val recentDebtors by viewModel.recentDebtors.collectAsState()
 
     // Checkout is a standalone route (not wrapped in MainScaffold), so it owns
     // its own snackbar host + scope and provides them for the whole screen.
@@ -637,6 +638,20 @@ fun CheckoutScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("saleCustomerLabel".t(lang), style = MaterialTheme.typography.labelMedium, color = Gray500)
                         Spacer(modifier = Modifier.height(4.dp))
+                        // ── Smart Utang (Phase 4.3) ─ recent debtor shortcuts ──
+                        if (recentDebtors.isNotEmpty()) {
+                            Text("recentDebtors".t(lang), style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(recentDebtors, key = { it.id }) { debtor ->
+                                    SuggestionChip(
+                                        onClick = { customerName = debtor.customerName },
+                                        label = { Text(debtor.customerName + " : P" + String.format("%.2f", debtor.remainingBalance)) }
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                         OutlinedTextField(
                             value = customerName,
                             onValueChange = { customerName = it },

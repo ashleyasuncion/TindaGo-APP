@@ -21,6 +21,7 @@ import com.example.tindago.data.CustomerDebt
 import com.example.tindago.data.DebtPayment
 import com.example.tindago.data.LocalSnackbarHost
 import com.example.tindago.data.LocalSnackbarScope
+import com.example.tindago.data.SmsHelper
 import com.example.tindago.data.SpecificSale
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
@@ -66,6 +67,7 @@ fun CustomerDebtDetailScreen(
     // Phone number edit state (SMS feature)
     var editingPhone by remember { mutableStateOf(false) }
     var phoneInput by remember { mutableStateOf("") }
+    var phoneError by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -244,6 +246,7 @@ fun CustomerDebtDetailScreen(
                         TextButton(onClick = {
                             editingPhone = !editingPhone
                             phoneInput = debt.phoneNumber
+                            phoneError = null
                         }) {
                             Text(
                                 if (editingPhone) "creditLimitCancel".t(lang)
@@ -256,11 +259,24 @@ fun CustomerDebtDetailScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = phoneInput,
-                            onValueChange = { phoneInput = it },
+                            onValueChange = {
+                                val digits = it.filter { c -> c.isDigit() }.take(SmsHelper.PHONE_MAX)
+                                if (digits.length <= SmsHelper.PHONE_MAX) phoneInput = digits
+                                if (phoneError != null) phoneError = null
+                            },
                             label = { Text("smsPhoneNumber".t(lang)) },
                             placeholder = { Text("smsPhonePlaceholder".t(lang)) },
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
+                            isError = phoneError != null,
+                            supportingText = {
+                                Text(
+                                    text = phoneError ?: "${phoneInput.length}/${SmsHelper.PHONE_MAX}",
+                                    color = if (phoneError != null) MaterialTheme.colorScheme.error else Gray500,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
                             shape = MaterialTheme.shapes.medium
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -272,14 +288,19 @@ fun CustomerDebtDetailScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(
                             onClick = {
-                                val normalized = if (phoneInput.isNotBlank()) {
-                                    com.example.tindago.data.SmsHelper.normalizePhoneNumber(phoneInput)
-                                } else null
-                                if (phoneInput.isNotBlank() && normalized == null) {
+                                val trimmed = phoneInput.trim()
+                                if (trimmed.isBlank()) {
+                                    phoneError = "phoneRequired".t(lang)
+                                    snackbarScope.launch { snackbarHost.showSnackbar("phoneRequired".t(lang)) }
+                                    return@Button
+                                }
+                                if (!SmsHelper.isStrictPHMobile11(trimmed)) {
+                                    phoneError = "smsPhoneInvalid".t(lang)
                                     snackbarScope.launch { snackbarHost.showSnackbar("smsPhoneInvalid".t(lang)) }
                                     return@Button
                                 }
-                                viewModel.updateDebtPhoneNumber(debt.id, normalized ?: "")
+                                phoneError = null
+                                viewModel.updateDebtPhoneNumber(debt.id, trimmed)
                                 editingPhone = false
                                 snackbarScope.launch {
                                     snackbarHost.showSnackbar("smsPhoneSaved".t(lang))

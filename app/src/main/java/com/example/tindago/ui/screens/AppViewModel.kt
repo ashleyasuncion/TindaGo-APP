@@ -1170,19 +1170,24 @@ class AppViewModel : ViewModel() {
      * Returns false (and does nothing) when the cart is empty, a credit sale
      * has no customer name, or the credit limit blocks the sale without [force].
      */
-    fun completeSale(customerName: String = "", force: Boolean = false): Boolean {
+    fun completeSale(customerName: String = "", normalizedPhone: String? = null, force: Boolean = false): Boolean {
         val lines = _saleCart.value
         if (lines.isEmpty()) return false
         val total = getCartTotal()
         val isCredit = _salePayment.value == "credit"
-        if (isCredit && customerName.isBlank()) return false
-        if (isCredit && !force) {
-            val cs = getCreditStatus(customerName, total)
-            if (cs.overLimit) return false
+        if (isCredit) {
+            // Stage 3: strict Utang guard — SSOT via SmsHelper (mirrors CheckoutScreen order)
+            val validation = SmsHelper.validateForUtang(customerName, normalizedPhone ?: "")
+            if (!validation.ok) return false
+            if (!force) {
+                val cs = getCreditStatus(customerName.trim(), total)
+                if (cs.overLimit) return false
+            }
         }
 
         // Shared transaction id so all lines read as one purchase.
         val transactionId = System.currentTimeMillis()
+        val trimmedNameForSale = if (isCredit) customerName.trim() else customerName
         lines.forEach { line ->
             val sale = SpecificSale(
                 id = 0, // auto-assigned
@@ -1190,7 +1195,7 @@ class AppViewModel : ViewModel() {
                 description = line.name,
                 amount = line.subtotal,
                 quantity = line.qty,
-                customerName = if (isCredit) customerName else null,
+                customerName = if (isCredit) trimmedNameForSale else null,
                 profit = (line.sellingPrice - (getProductById(line.productId)?.costPrice ?: 0.0)) * line.qty,
                 transactionId = transactionId,
                 paymentMethod = if (isCredit) "credit" else "cash"
@@ -1200,10 +1205,16 @@ class AppViewModel : ViewModel() {
         }
 
         // One debt entry per transaction; per-line ledger entries (web parity).
+        // Stage 3: store phone atomically on debt (new or existing) — no post-hoc update needed.
         if (isCredit) {
-            val existingDebt = getDebtForName(customerName)
+            val trimmed = customerName.trim()
+            val phone = normalizedPhone?.trim() ?: ""
+            val existingDebt = getDebtForName(trimmed)
             if (existingDebt != null) {
                 addToDebtBalance(existingDebt.id, total)
+                if (phone.isNotEmpty() && existingDebt.phoneNumber != phone) {
+                    updateDebtPhoneNumber(existingDebt.id, phone)
+                }
                 lines.forEach { line ->
                     addDebtTransaction(existingDebt.id, "debt", line.name, line.subtotal)
                 }
@@ -1211,9 +1222,10 @@ class AppViewModel : ViewModel() {
                 val newDebt = addDebt(
                     CustomerDebt(
                         id = 0,
-                        customerName = customerName,
+                        customerName = trimmed,
                         amount = total,
-                        remainingBalance = total
+                        remainingBalance = total,
+                        phoneNumber = phone
                     )
                 )
                 lines.forEach { line ->
@@ -1225,6 +1237,10 @@ class AppViewModel : ViewModel() {
         clearCart()
         return true
     }
+
+    /** Back-compat overload — delegates to strict 3-arg form (phone = null). */
+    fun completeSale(customerName: String, force: Boolean): Boolean =
+        completeSale(customerName = customerName, normalizedPhone = null, force = force)
 
     // ── Credit-limit engine (web v2.56/v2.57 parity) ────────────────────
 

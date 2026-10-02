@@ -132,7 +132,7 @@ fun BottomNavBar(
 
     if (isMomentScreen) {
         // ═══════════════════════════════════════════════════════
-        // THREE-MOMENT NAV (Morning / Sell-FAB / Close)
+        // THREE-MOMENT NAV (Morning / Day(+Sell FAB Day-only) / Close) — Option 1
         // ═══════════════════════════════════════════════════════
         Surface(
             modifier = Modifier
@@ -175,55 +175,50 @@ fun BottomNavBar(
                     onClick = { handleMomentTap(MomentNavItem.MORNING) }
                 )
 
-                // ── FAB: Sell (center) — Phase 4.4 hero 64.dp primary, ShoppingCart 28.dp, bypasses stale guard via onSaleFabClick ──
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .offset(y = (-12).dp)
-                        .shadow(8.dp, CircleShape)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .clickable {
-                            // Fix: Morning → Day first (2-tap flow); stale → Checkout directly
-                            when {
-                                appViewModel?.isStaleOpenDay() == true -> onSaleFabClick?.invoke() ?: navController.navigate(Routes.CHECKOUT)
-                                currentRoute == Routes.MORNING -> {
-                                    val vm = appViewModel
-                                    if (vm != null && (!vm.dayOpen || vm.isStaleOpenDay())) {
-                                        val msg = if (vm.isStaleOpenDay()) "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
-                                        snackbarScope.launch { snackbarHost.showSnackbar(msg) }
-                                    } else {
-                                        navController.navigate(Routes.DAY) {
-                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                }
-                                else -> onSaleFabClick?.invoke() ?: navController.navigate(Routes.CHECKOUT)
+                // ── Stage 5 Option 1: Sell FAB Day-only ─ visible only when currentRoute == DAY ──
+                if (currentRoute == Routes.DAY) {
+                    // Hero Sell FAB — 64.dp primary, ShoppingCart 28.dp, bypasses stale guard via onSaleFabClick (Task 4.2)
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .offset(y = (-12).dp)
+                            .shadow(8.dp, CircleShape)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                            .clickable {
+                                // Day-only FAB always goes to Checkout; CHECKOUT guard allows stale (Task 4.2)
+                                onSaleFabClick?.invoke() ?: navController.navigate(Routes.CHECKOUT)
                             }
+                            .tutorialHighlight("sellFab", highlightState),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // spec: FloatingActionButton(onClick = onSaleFabClick, containerColor = MaterialTheme.colorScheme.primary, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.ShoppingCart, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            androidx.compose.material3.Icon(
+                                Icons.Filled.ShoppingCart,
+                                contentDescription = "sell".t(lang),
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text(
+                                "sell".t(lang),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        .tutorialHighlight("sellFab", highlightState),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // spec: FloatingActionButton(onClick = onSaleFabClick, containerColor = MaterialTheme.colorScheme.primary, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.ShoppingCart, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        androidx.compose.material3.Icon(
-                            Icons.Filled.ShoppingCart,
-                            contentDescription = "sell".t(lang),
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Text(
-                            "sell".t(lang),
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
+                } else {
+                    // Day tab (regular nav) — taps go through handleMomentTap which guards !dayOpen / stale
+                    NavBarTab(
+                        label = "day".t(lang),
+                        icon = { DayIcon() },
+                        isSelected = currentRoute == Routes.DAY,
+                        onClick = { handleMomentTap(MomentNavItem.DAY) }
+                    )
                 }
 
-                // ── Close tab (right) ──
+                                // ── Close tab (right) ──
                 NavBarTab(
                     label = "close".t(lang),
                     icon = { CloseIcon() },
@@ -345,6 +340,11 @@ private fun PlusIcon() {
 @Composable
 private fun CloseIcon() {
     Text("\uD83C\uDF19", fontSize = 20.sp)
+}
+
+@Composable
+private fun DayIcon() {
+    Text("\uD83D\uDECD\uFE0F", fontSize = 20.sp)
 }
 
 @Composable

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.example.tindago.data.CustomerDebt
 import com.example.tindago.data.LocalSnackbarHost
 import com.example.tindago.data.LocalSnackbarScope
+import com.example.tindago.data.SmsHelper
 import com.example.tindago.data.SpecificSale
 import com.example.tindago.ui.components.LocalTutorialHighlightState
 import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
@@ -48,6 +49,8 @@ fun NewDebtScreen(
     var amount by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var showSuggestions by remember { mutableStateOf(false) }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
 
     val debts by viewModel.debts.collectAsState()
     val usedNames = remember { viewModel.getUsedCustomerNames() }
@@ -118,14 +121,20 @@ fun NewDebtScreen(
                 return
             }
         }
-        // Validate phone number if provided
-        val normalizedPhone = if (phoneNumber.isNotBlank()) {
-            com.example.tindago.data.SmsHelper.normalizePhoneNumber(phoneNumber)
-        } else null
-        if (phoneNumber.isNotBlank() && normalizedPhone == null) {
-            snackbarScope.launch { snackbarHost.showSnackbar("smsPhoneInvalid".t(lang)) }
-            return
+        // Stage 4: strict Utang validation - SSOT SmsHelper.validateForUtang (nameRequired->nameInvalid->phoneRequired->smsPhoneInvalid)
+        val trimmedName2 = customerName.trim()
+        val trimmedPhone = phoneNumber.trim()
+        val v = SmsHelper.validateForUtang(trimmedName2, trimmedPhone)
+        if (!v.ok) {
+            when {
+                v.nameErrorKey == "nameRequired" -> { nameError = "nameRequired".t(lang); snackbarScope.launch { snackbarHost.showSnackbar("nameRequired".t(lang)) }; return }
+                v.nameErrorKey == "nameInvalid" -> { nameError = "nameInvalid".t(lang); snackbarScope.launch { snackbarHost.showSnackbar("nameInvalid".t(lang)) }; return }
+                v.phoneErrorKey == "phoneRequired" -> { phoneError = "phoneRequired".t(lang); snackbarScope.launch { snackbarHost.showSnackbar("phoneRequired".t(lang)) }; return }
+                v.phoneErrorKey == "smsPhoneInvalid" -> { phoneError = "smsPhoneInvalid".t(lang); snackbarScope.launch { snackbarHost.showSnackbar("smsPhoneInvalid".t(lang)) }; return }
+            }
         }
+        nameError = null; phoneError = null
+        val normalizedPhone = trimmedPhone
 
         // Check if customer already exists
         val existingDebt = viewModel.debts.value.find {
@@ -133,10 +142,7 @@ fun NewDebtScreen(
         }
         if (existingDebt != null) {
             viewModel.addToDebtBalance(existingDebt.id, debtAmount)
-            // Update phone number if provided
-            if (normalizedPhone != null) {
-                viewModel.updateDebtPhoneNumber(existingDebt.id, normalizedPhone)
-            }
+            viewModel.updateDebtPhoneNumber(existingDebt.id, normalizedPhone)
             // Ledger entry (web saveNewDebt parity: description = "Manual")
             viewModel.addDebtTransaction(existingDebt.id, "debt", "Manual", debtAmount)
         } else {
@@ -146,7 +152,7 @@ fun NewDebtScreen(
                     customerName = name,
                     amount = debtAmount,
                     remainingBalance = debtAmount,
-                    phoneNumber = normalizedPhone ?: ""
+                    phoneNumber = normalizedPhone
                 )
             )
             viewModel.addDebtTransaction(newDebt.id, "debt", "Manual", debtAmount)
@@ -203,15 +209,24 @@ fun NewDebtScreen(
             OutlinedTextField(
                 value = customerName,
                 onValueChange = {
-                    customerName = it
+                    if (it.length <= SmsHelper.NAME_MAX) customerName = it
                     showSuggestions = it.isNotEmpty()
+                    if (nameError != null) nameError = null
                 },
                 placeholder = { Text("enterCustomerNameDebt".t(lang)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().tutorialHighlight("newDebtNameField", highlightState),
+                isError = nameError != null,
+                supportingText = {
+                    Text(
+                        text = nameError ?: "${customerName.length}/${SmsHelper.NAME_MAX}",
+                        color = if (nameError != null) MaterialTheme.colorScheme.error else Gray500,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 trailingIcon = if (customerName.isNotEmpty()) {
-                    { IconButton(onClick = { customerName = ""; showSuggestions = false }) {
+                    { IconButton(onClick = { customerName = ""; showSuggestions = false; nameError = null }) {
                         Icon(Icons.Default.Clear, contentDescription = "Clear")
                     } }
                 } else null,
@@ -262,12 +277,24 @@ fun NewDebtScreen(
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = phoneNumber,
-                onValueChange = { phoneNumber = it },
+                onValueChange = {
+                    val digits = it.filter { c -> c.isDigit() }.take(SmsHelper.PHONE_MAX)
+                    if (digits.length <= SmsHelper.PHONE_MAX) phoneNumber = digits
+                    if (phoneError != null) phoneError = null
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 placeholder = { Text("smsPhonePlaceholder".t(lang)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+                isError = phoneError != null,
+                supportingText = {
+                    Text(
+                        text = phoneError ?: "${phoneNumber.length}/${SmsHelper.PHONE_MAX}",
+                        color = if (phoneError != null) MaterialTheme.colorScheme.error else Gray500,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
-                supportingText = { Text("smsPhoneHint".t(lang), style = MaterialTheme.typography.bodySmall) },
                 shape = MaterialTheme.shapes.medium
             )
 

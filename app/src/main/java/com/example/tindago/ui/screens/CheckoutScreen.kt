@@ -95,6 +95,12 @@ fun CheckoutScreen(
         }
     }
 
+    // ── Stage 0 constants: 50-char name / 11-digit PH mobile / always mandatory for Utang ──
+    val NAME_MAX = 50
+    val PHONE_MAX = 11
+    // Letters incl. Filipino diacritics, space, hyphen, apostrophe, period — 2..50 chars
+    val nameRegex = remember { Regex("^[A-Za-z\u00C0-\u024F '.\\-]{2,50}$") }
+
     // Form state
     var productQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("") }
@@ -106,6 +112,9 @@ fun CheckoutScreen(
     var showSuggestions by remember { mutableStateOf(false) }
     var isEditingQty by remember { mutableStateOf(false) }
     var qtyText by remember { mutableStateOf("1") }
+    // Inline validation errors — shown as supportingText when Utang is selected
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
     // Discard-confirm dialog for leaving with a non-empty cart
     var showDiscardDialog by remember { mutableStateOf(false) }
     // SMS receipt prompt after credit sale
@@ -198,49 +207,64 @@ fun CheckoutScreen(
         showSuggestions = false
         isEditingQty = false
         qtyText = "1"
+        nameError = null
+        phoneError = null
     }
 
     fun toast(msg: String) {
         snackbarScope.launch { snackbarHostState.showSnackbar(msg) }
     }
 
-    /** Web completeSale(force) parity — blocks at/over the credit limit unless forced. */
+    // Stage 1: strict validators — shared with Stages 2-4
+    fun isNameValid(v: String): Boolean {
+        val t = v.trim(); return t.length in 2..NAME_MAX && nameRegex.matches(t)
+    }
+    fun isPhoneValid(v: String): Boolean = Regex("^09\\d{9}$").matches(v)
+
+    /** Stage 1: Utang ALWAYS requires 50-char name + 11-digit 09XXXXXXXXX phone. */
     fun completeSale(force: Boolean) {
         if (cart.isEmpty()) {
             toast("cartEmpty".t(lang))
             return
         }
         if (payment == "credit") {
-            if (customerName.isBlank()) {
-                toast("noCustomerCredit".t(lang))
-                return
+            val trimmedName = customerName.trim()
+            // 1) Name mandatory
+            if (trimmedName.isEmpty()) {
+                nameError = "nameRequired".t(lang); phoneError = null
+                toast("nameRequired".t(lang)); return
             }
+            // 2) Name 2..50 + charset
+            if (!isNameValid(customerName)) {
+                nameError = "nameInvalid".t(lang); toast("nameInvalid".t(lang)); return
+            }
+            nameError = null
+            // 3) Phone ALWAYS mandatory for Utang
+            if (customerPhone.isBlank()) {
+                phoneError = "phoneRequired".t(lang)
+                toast("phoneRequired".t(lang)); return
+            }
+            // 4) Phone exactly 11 digits 09XXXXXXXXX — digits-only + prefix already enforced in field
+            if (!isPhoneValid(customerPhone)) {
+                phoneError = "smsPhoneInvalid".t(lang)
+                toast("smsPhoneInvalid".t(lang)); return
+            }
+            phoneError = null
+            // 5) Credit-limit gate (web parity — banner + Allow anyway)
             if (!force) {
-                val cs = viewModel.getCreditStatus(customerName, cartTotal)
-                if (cs.overLimit) return // inline banner + Allow anyway are the alert
+                val cs = viewModel.getCreditStatus(trimmedName, cartTotal)
+                if (cs.overLimit) return
             }
+        } else {
+            nameError = null; phoneError = null
         }
-        // Validate phone number if provided
-        val normalizedPhone = if (customerPhone.isNotBlank()) {
-            com.example.tindago.data.SmsHelper.normalizePhoneNumber(customerPhone)
-        } else null
-        if (customerPhone.isNotBlank() && normalizedPhone == null) {
-            toast("smsPhoneInvalid".t(lang))
-            return
-        }
+        val trimmedName = customerName.trim()
+        val normalizedPhone = if (payment == "credit") customerPhone.trim() else null
 
-        val ok = viewModel.completeSale(customerName, force)
+        val ok = viewModel.completeSale(trimmedName, normalizedPhone, force)
         if (ok) {
-            // Save phone number to the customer's debt record if provided
-            if (normalizedPhone != null && payment == "credit") {
-                val existingDebt = viewModel.getDebtForName(customerName)
-                if (existingDebt != null) {
-                    viewModel.updateDebtPhoneNumber(existingDebt.id, normalizedPhone)
-                }
-            }
-            // Show SMS receipt prompt for credit sales with a phone number
             if (payment == "credit" && normalizedPhone != null) {
-                smsReceiptCustomerName = customerName
+                smsReceiptCustomerName = trimmedName
                 smsReceiptPhone = normalizedPhone
                 smsReceiptAmount = cartTotal
                 showSmsReceiptDialog = true
@@ -654,24 +678,53 @@ fun CheckoutScreen(
                         }
                         OutlinedTextField(
                             value = customerName,
-                            onValueChange = { customerName = it },
+                            onValueChange = {
+                                if (it.length <= NAME_MAX) customerName = it
+                                if (nameError != null) nameError = null
+                            },
                             placeholder = { Text("customerPlaceholder".t(lang)) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            singleLine = true
+                            singleLine = true,
+                            isError = payment == "credit" && nameError != null,
+                            supportingText = {
+                                if (payment == "credit") {
+                                    Text(
+                                        nameError ?: "${customerName.length}/$NAME_MAX",
+                                        color = if (nameError != null) MaterialTheme.colorScheme.error else Gray500
+                                    )
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
                         )
 
-                        // Phone number field (SMS feature)
+                        // Phone number field (SMS feature) — 11 digits digits-only, always mandatory for Utang
                         Spacer(modifier = Modifier.height(12.dp))
                         Text("smsPhoneNumber".t(lang), style = MaterialTheme.typography.labelMedium, color = Gray500)
                         Spacer(modifier = Modifier.height(4.dp))
                         OutlinedTextField(
                             value = customerPhone,
-                            onValueChange = { customerPhone = it },
+                            onValueChange = {
+                                val digits = it.filter { c -> c.isDigit() }
+                                if (digits.length <= PHONE_MAX) customerPhone = digits
+                                if (phoneError != null) phoneError = null
+                            },
                             placeholder = { Text("smsPhonePlaceholder".t(lang)) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true,
+                            isError = payment == "credit" && phoneError != null,
+                            supportingText = {
+                                if (payment == "credit") {
+                                    Text(
+                                        phoneError ?: "${customerPhone.length}/$PHONE_MAX",
+                                        color = if (phoneError != null) MaterialTheme.colorScheme.error else Gray500
+                                    )
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(18.dp)) }
                         )
                         if (customerName.isNotEmpty() && filteredCustomers.isNotEmpty()) {
@@ -775,6 +828,7 @@ fun CheckoutScreen(
                     // setting); heightIn + maxLines=2 let Extra Large text wrap
                     // gracefully inside a slightly taller button instead of
                     // clipping, and Close maxes at one line.
+                    val utangReady = payment != "credit" || (isNameValid(customerName) && isPhoneValid(customerPhone))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(
                             onClick = { leave() },
@@ -786,7 +840,7 @@ fun CheckoutScreen(
                         }
                         Button(
                             onClick = { completeSale(force = false) },
-                            enabled = cart.isNotEmpty(),
+                            enabled = cart.isNotEmpty() && utangReady,
                             modifier = Modifier
                                 .weight(1.5f)
                                 .heightIn(min = 50.dp)

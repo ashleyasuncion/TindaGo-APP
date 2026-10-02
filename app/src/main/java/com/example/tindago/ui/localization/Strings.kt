@@ -734,6 +734,11 @@ object Strings {
         "debtNote" to "This will add the amount to the customer's outstanding balance. You can record payments from the Debts screen.",
         "usedCustomerHint" to "Suggestions from previous customers",
 
+        // ── Utang validation (Stage 4/6 — SmsHelper.validateForUtang SSOT) ──
+        "nameRequired" to "Please enter customer name.",
+        "nameInvalid" to "Name must be 2-50 letters only (spaces, ' . - allowed).",
+        "phoneRequired" to "Phone number is required for Utang.",
+
         // Credit Limits (web v2.56/v2.57 parity)
         "defaultCreditLimitLabel" to "Default Credit Limit (₱)",
         "defaultCreditLimitHint" to "For new customers. 0 = no limit.",
@@ -1755,6 +1760,11 @@ object Strings {
         "enterCustomerNameDebt" to "Ilagay ang pangalan ng kostumer",
         "debtNote" to "Idadagdag ang halagang ito sa balanse ng kostumer. Maaari kang magtala ng bayad mula sa Utang screen.",
         "usedCustomerHint" to "Mga mungkahi mula sa dating kostumer",
+
+        // ── Utang validation (Stage 4/6 — SmsHelper.validateForUtang SSOT) ──
+        "nameRequired" to "Ilagay ang pangalan ng kostumer.",
+        "nameInvalid" to "Pangalan ay 2-50 titik lamang (puwede ang espasyo, ' . -).",
+        "phoneRequired" to "Kailangan ang numero ng telepono para sa Utang.",
 
         // Credit Limits (web v2.56/v2.57 parity)
         "defaultCreditLimitLabel" to "Default na Limit ng Utang (₱)",

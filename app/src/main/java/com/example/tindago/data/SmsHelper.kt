@@ -18,6 +18,8 @@ object SmsHelper {
      * Philippine phone number validation.
      * Accepts: 09XX XXX XXXX, +63 9XX XXX XXXX, 63 9XX XXX XXXX
      * Returns the normalized 11-digit format (09XXXXXXXXX) or null if invalid.
+     * Kept for backward compat (SMS intents, legacy display, SmsWorker).
+     * For NEW Utang validation use [isStrictPHMobile11] — exactly 09XXXXXXXXX.
      */
     fun normalizePhoneNumber(input: String): String? {
         val digits = input.replace(Regex("[^0-9+]"), "")
@@ -32,6 +34,43 @@ object SmsHelper {
             Regex("^9\\d{9}$").matches(digits) -> "0$digits"
             else -> null
         }
+    }
+
+    // ── Stage 2: strict Utang phone/name rules (single source of truth) ──
+    const val PHONE_MAX = 11
+    const val NAME_MAX = 50
+    private val STRICT_PHONE_REGEX = Regex("^09\\d{9}$")
+    private val STRICT_NAME_REGEX = Regex("^[A-Za-z\u00C0-\u024F '.-]{2,50}$")
+
+    /**
+     * Strict PH mobile check for Utang — exactly 11 digits, 09XXXXXXXXX, digits-only.
+     * No +63, no spaces, no dashes. Callers should already filter to digits-only
+     * (Checkout does filter{isDigit} + max 11), so this is a pure regex gate.
+     * Trim is applied for safety if caller passes " 0912..." with whitespace.
+     */
+    fun isStrictPHMobile11(input: String): Boolean =
+        STRICT_PHONE_REGEX.matches(input.trim())
+
+    /** Strict customer name check for Utang — 2..50 chars, letters/accent + ' . -  */
+    fun isValidCustomerName(name: String): Boolean {
+        val t = name.trim()
+        return t.length in 2..NAME_MAX && STRICT_NAME_REGEX.matches(t)
+    }
+
+    /** Centralized Utang validation — mirrors CheckoutScreen order: nameRequired → nameInvalid → phoneRequired → smsPhoneInvalid */
+    data class UtangValidation(
+        val ok: Boolean,
+        val nameErrorKey: String?,
+        val phoneErrorKey: String?
+    )
+
+    fun validateForUtang(customerName: String, phone: String): UtangValidation {
+        val tName = customerName.trim()
+        if (tName.isEmpty()) return UtangValidation(false, "nameRequired", null)
+        if (!isValidCustomerName(customerName)) return UtangValidation(false, "nameInvalid", null)
+        if (phone.isBlank()) return UtangValidation(false, null, "phoneRequired")
+        if (!isStrictPHMobile11(phone)) return UtangValidation(false, null, "smsPhoneInvalid")
+        return UtangValidation(true, null, null)
     }
 
     /**

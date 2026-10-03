@@ -212,6 +212,8 @@ fun DebtsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        // Keyboard avoidance: lift payment input above the IME.
+                        .imePadding()
                         .padding(horizontal = 20.dp)
                         .padding(bottom = 32.dp)
                 ) {

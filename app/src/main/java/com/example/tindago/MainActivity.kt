@@ -3,7 +3,9 @@ package com.example.tindago
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -19,6 +21,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Keyboard avoidance: consistent edge-to-edge on all API levels + the
+        // window resizes for the IME (manifest also sets adjustResize).
+        enableEdgeToEdge()
+
         val appSettings = AppSettings(this)
 
         setContent {
@@ -31,7 +37,9 @@ class MainActivity : ComponentActivity() {
             ) {
                 TindaGoTheme {
                     Surface(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .imePadding(),
                         color = MaterialTheme.colorScheme.background
                     ) {
                         val navController = rememberNavController()

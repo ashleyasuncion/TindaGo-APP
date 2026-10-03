@@ -176,6 +176,9 @@ fun DeveloperPanel(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // Keyboard avoidance: lift the sheet content above the IME so the
+                    // Dev Date/Time Override fields are never hidden by the keyboard.
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 32.dp)

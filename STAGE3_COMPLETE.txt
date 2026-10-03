@@ -1,0 +1,15 @@
+STAGE 3 COMPLETE - Pixel parity vs day.html @393x852 + regression seal
+=====================================================
+Date: 2026-10-03
+File: app/src/main/java/com/example/tindago/ui/navigation/BottomNavBar.kt
+Line count: 496 -> 498 (drift +2, limit +30)
+
+ACCEPTANCE CHECKS: 32/32 PASS (see STAGE3_REPORT.txt)
+BUILD: BUILD SUCCESSFUL in 30s (:app:assembleDebug,
+  compileDebugKotlin executed, 0 errors)
+  Log: c:/temp/gradle_stage3.txt
+
+SEAL: every web token in git/TindaGo/style.css + day.html has a
+  1:1 Compose counterpart (parity table in STAGE3_REPORT.txt);
+  all Stage 1+2 invariants re-verified (sibling overlay, Day-only
+  gate, Day tab guard, CHECKOUT fallback, support nav untouched).

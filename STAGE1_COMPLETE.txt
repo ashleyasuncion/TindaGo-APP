@@ -1,0 +1,39 @@
+STAGE 1 COMPLETE — Option A: web-faithful unclipped overlay parent
+====================================================================
+Date: 2026-10-03
+File: app/src/main/java/com/example/tindago/ui/navigation/BottomNavBar.kt
+Lines: 468 -> 479 (+11, drift limit +30)
+Build: BUILD SUCCESSFUL in 1m 35s (:app:assembleDebug, log c:/temp/gradle_stage1c.txt)
+Checks: 23/23 PASS (see STAGE1_REPORT.txt)
+
+WHAT CHANGED (Stage 1 of 3):
+  The moment-branch nav is now wrapped in an outer Box that OWNS the
+  FAB overhang in its measured bounds and disables clipping on every
+  clip-capable layer between the Scaffold bottomBar and the FAB:
+
+    Box(fillMaxWidth, heightIn(min=88.dp), navigationBarsPadding(),
+        graphicsLayer(clip=false), BottomCenter)
+      Surface(fillMaxWidth, heightIn(min=64.dp), graphicsLayer(clip=false),
+              surface, shadowElevation 8.dp, border 1.dp 0xFFE2E8F0)
+        Row(fillMaxWidth, padding 4/4, graphicsLayer(clip=false), Center)
+          ... Morning tab | 48dp spacer | Sell FAB (Day only) or Day tab |
+              48dp spacer | Close tab ...
+
+  FAB internals untouched (frozen tokens preserved):
+  52.dp size, paint-only offset(y=-24.dp), shadow 12.dp CircleShape
+  clip=false 0x5916A34A, press scale 0.93 tween(100), WebCartIcon 24dp
+  arcTo wheels, sellFab tutorial highlight, EN/Fil "Sell/Benta",
+  Routes.CHECKOUT fallback.
+
+WHY THIS FIXES THE CLIP:
+  Scaffold bottomBar now measures 88dp (64 nav + 24 overhang) and
+  reserves that space in paddingValues, while graphicsLayer(clip=false)
+  on Box/Surface/Row mirrors web .bottom-nav { overflow: visible }.
+  The FAB's 24dp crown + green glow now paint above the Surface top
+  edge exactly like web .nav-fab { margin-top: -24px } inside an
+  unclipped .bottom-nav.
+
+NEXT (Stage 2): refactor to sibling FAB layer — pure 64dp nav bar +
+  separate FAB Box aligned BottomCenter with zIndex(1f), conditional on
+  Routes.DAY; outer Box collapses to 64dp when no FAB; Support nav
+  unchanged. Stage 3: pixel parity vs day.html @393x852 + regression seal.

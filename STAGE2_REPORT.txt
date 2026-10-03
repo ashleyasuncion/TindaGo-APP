@@ -1,0 +1,46 @@
+STAGE 2 REPORT - Sibling FAB layer over pure 64dp nav
+============================================================
+Date: 2026-10-03
+File: app/src/main/java/com/example/tindago/ui/navigation/BottomNavBar.kt
+Line count: 479 -> 496 (drift +17, limit +30)
+
+CHANGES:
+  1. showSellFab = currentRoute == Routes.DAY flag
+  2. Outer Box: heightIn(min = if (showSellFab) 88.dp else 64.dp);
+     collapses to pure 64dp on Morning/Closing like web .bottom-nav
+  3. Row: Day NavBarTab restored in-flow; spacers conditional
+     (48.dp on Day, 0.dp otherwise); Center on Day / SpaceEvenly off-Day
+  4. New BoxScope.SellFabOverlay sibling: BottomCenter + zIndex(1f) +
+     offset -24dp; frozen tokens 52dp / 24dp cart / 0x59 glow / 0.93
+     tween100 / sellFab highlight / sell i18n / CHECKOUT fallback
+  5. Support nav branch untouched
+
+ACCEPTANCE CHECKS: 24/24 PASS
+  PASS S2.01 showSellFab flag on Routes.DAY
+  PASS S2.02 outer Box collapses 64dp when no FAB
+  PASS S2.03 outer Box BottomCenter
+  PASS S2.04 zIndex import
+  PASS S2.05 SellFabOverlay BoxScope composable
+  PASS S2.06 overlay aligns BottomCenter
+  PASS S2.07 overlay zIndex 1f
+  PASS S2.08 overlay lift -24dp
+  PASS S2.09 FAB 52dp
+  PASS S2.10 shadow 12dp green 0x59 x2
+  PASS S2.11 press 0.93 tween100 label
+  PASS S2.12 WebCartIcon 24dp arcTo wheels
+  PASS S2.13 sellFab highlight
+  PASS S2.14 sell i18n x2
+  PASS S2.15 CHECKOUT fallback via onSaleFabClick
+  PASS S2.16 Day tab back in Row
+  PASS S2.17 conditional spacers
+  PASS S2.18 Row SpaceEvenly when no FAB
+  PASS S2.19 clip=false >=3 (Box/Surface/Row)
+  PASS S2.20 Surface 64dp + 8dp + border
+  PASS S2.21 navBarsPadding x2 (moment+support)
+  PASS S2.22 support branch intact
+  PASS S2.23 whole-file braces balanced
+  PASS S2.24 line drift within +30 of 479
+
+BUILD: BUILD SUCCESSFUL in 2m 52s (:app:assembleDebug, --no-configuration-cache, --rerun-tasks)
+  compileDebugKotlin executed, 0 errors (pre-existing warnings only)
+  Log: c:/temp/gradle_stage2e.txt

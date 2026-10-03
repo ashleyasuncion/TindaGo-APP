@@ -1,0 +1,65 @@
+STAGE 3 REPORT - Pixel parity vs day.html @393x852 + regression seal (in-flow update)
+============================================================
+Date: 2026-10-03 (update: in-flow center-slot fix)
+Web truth: git/TindaGo/day.html + git/TindaGo/style.css
+File: app/src/main/java/com/example/tindago/ui/navigation/BottomNavBar.kt
+
+PARITY TABLE (web -> Compose):
+  --nav-h 64px            -> Surface heightIn(min=64.dp)
+  .nav-fab 52px circle    -> .size(52.dp) + .clip(CircleShape)
+  margin-top -24px        -> in-flow .offset(y=(-24).dp), outer Box 88dp on Day
+  shadow 0 4px 12px rgba(22,163,74,.35) -> 12dp 0x5916A34A x2 (0x59=35%)
+  :active scale .93/.1s   -> 0.93f tween100 fabPressScale
+  cart 24px stroke2 round -> WebCartIcon 24dp arcTo wheels stroke2 Round
+  label 12px/600/0.2px    -> 12sp SemiBold 0.2sp primary
+  spacer 48px             -> 48dp conditional spacers on Day (x2, flanking center)
+  border-top 1px #e2e8f0  -> BorderStroke(1dp,0xFFE2E8F0) + elev 8dp
+  surface #fff / primary #16a34a -> surface color / primary bg + white icon
+  day.html center slot    -> RowScope SellFabInRow in-flow (Morning | 48dp |
+                            Sell | 48dp | Close); NO sibling overlay, NO zIndex
+
+ARCHITECTURE CHANGE (Stage 2 fix, sealed here):
+  BEFORE: Box{ Surface{Row{Morning,[Day?],Close}} + if(showSellFab) SellFabOverlay
+            BottomCenter/zIndex(1f) } — paint-over; Day could persist underneath.
+  AFTER:  Box{ Surface{Row{ Morning + 48dp Spacer +
+                            if(showSellFab) SellFabInRow else DayTab +
+                            48dp Spacer + Close }} } — exactly one center item,
+            Sell occupies Day slot in layout like web .nav-fab-item.
+
+ACCEPTANCE CHECKS:
+  Parity (web -> Compose):
+  PASS S3.01 nav 64dp (= --nav-h)
+  PASS S3.02 FAB 52dp circle + clip
+  PASS S3.03 lift -24dp (= margin-top -24px) + outer Box 88dp on Day
+  PASS S3.04 shadow 12dp green 0x59 x2 (= rgba .35)
+  PASS S3.05 press 0.93 tween100 (= :active scale .93)
+  PASS S3.06 WebCartIcon 24dp arcTo wheels stroke2 Round (= day.html cart SVG)
+  PASS S3.07 sell label 12sp SemiBold 0.2sp primary (= 12px/600/0.2px)
+  PASS S3.08 spacers 48dp x2 conditional on Day (= .nav-spacer)
+  PASS S3.09 border 1dp 0xFFE2E8F0 + elev 8dp (= border-top)
+  PASS S3.10 surface/primary + white icon
+  PASS S3.11 center slot in-flow (RowScope, no overlay, no zIndex)
+  Regression seal:
+  PASS S3.12 showSellFab = currentRoute == Routes.DAY (single gate)
+  PASS S3.13 if/else center slot — exactly one item (no Day under Sell)
+  PASS S3.14 Day tab off-Day only (Morning/Closing), isSelected=false (dead
+           currentRoute==DAY check removed)
+  PASS S3.15 Sell onClick = onSaleFabClick ?: navigate(CHECKOUT)
+  PASS S3.16 CHECKOUT fallback preserved
+  PASS S3.17 sellFab tutorialHighlight preserved on Sell
+  PASS S3.18 sell i18n x2 (contentDescription + Text)
+  PASS S3.19 Row Center on Day / SpaceEvenly off-Day
+  PASS S3.20 outer Box 88dp Day / 64dp otherwise + navigationBarsPadding
+  PASS S3.21 clip=false on Box/Surface/Row (crown visible, like web overflow visible)
+  PASS S3.22 support nav (Morning/Inventory/Debts) untouched
+  PASS S3.23 no SellFabOverlay references remain; no zIndex import
+  PASS S3.24 Morning Day-tap guard (handleMomentTap) unchanged
+  PASS S3.25 Closing Day-tap guard unchanged
+  PASS S3.26 DayModeScreen has no duplicate Sell/Day nav control
+  PASS S3.27 whole-file braces balanced; RowScope resolves via layout.* import
+  PASS S3.28 line drift within +30 of Stage 2 baseline
+
+NOTE: Stage 3 is layout-structural (overlay -> in-flow) + comment updates;
+  FAB visual tokens frozen. Fresh build required to seal:
+  :app:assembleDebug --no-configuration-cache, expect BUILD SUCCESSFUL,
+  compileDebugKotlin 0 errors.

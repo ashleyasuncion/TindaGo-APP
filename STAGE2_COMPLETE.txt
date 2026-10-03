@@ -1,0 +1,21 @@
+STAGE 2 COMPLETE - Sibling FAB layer over pure 64dp nav
+=====================================================
+Date: 2026-10-03
+File: app/src/main/java/com/example/tindago/ui/navigation/BottomNavBar.kt
+Line count: 479 -> 496 (drift +17, limit +30)
+
+ACCEPTANCE CHECKS: 24/24 PASS (see STAGE2_REPORT.txt)
+BUILD: BUILD SUCCESSFUL in 2m 52s (:app:assembleDebug,
+  --no-configuration-cache --rerun-tasks, compileDebugKotlin 0 errors)
+  Log: c:/temp/gradle_stage2e.txt
+
+DESIGN:
+  showSellFab = currentRoute == Routes.DAY gates both the 88dp outer-Box
+  height (64dp otherwise, like web .bottom-nav) and the BoxScope
+  SellFabOverlay sibling (BottomCenter, zIndex 1f, -24dp lift).
+  Row keeps Morning/Day/Close in flow with conditional spacers and
+  Center/SpaceEvenly arrangement. All FAB tokens frozen:
+  52dp / 24dp cart / 0x5916A34A glow / 0.93 tween100 / WebCartIcon arcTo /
+  sellFab highlight / sell i18n / CHECKOUT fallback. Support nav untouched.
+
+NEXT (Stage 3): pixel parity vs day.html @393x852 + regression seal.

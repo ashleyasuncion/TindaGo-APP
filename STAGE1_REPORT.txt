@@ -1,0 +1,57 @@
+STAGE 1 REPORT - Option A: web-faithful unclipped overlay parent
+============================================================
+Date: 2026-10-03
+File: app/src/main/java/com/example/tindago/ui/navigation/BottomNavBar.kt
+Line count: 468 -> 479 (drift +11, limit +30)
+
+CHANGES:
+  1. isMomentScreen branch wrapped in outer Box:
+     - fillMaxWidth, heightIn(min=88.dp) [64 nav + 24 FAB overhang]
+     - navigationBarsPadding() (moved from Surface; no double-count)
+     - graphicsLayer(clip = false), contentAlignment = BottomCenter
+  2. Surface: keeps heightIn(min=64.dp); adds graphicsLayer(clip=false);
+     color / shadowElevation 8.dp / border 1.dp 0xFFE2E8F0 untouched
+  3. Row: adds graphicsLayer(clip = false); padding h4 v4, Center, CenterVertically kept
+  4. FAB internals untouched: 52dp, offset -24dp paint-only, shadow 12dp
+     CircleShape clip=false 0x5916A34A, press 0.93 tween100, WebCartIcon
+     24dp arcTo wheels, sellFab tutorial highlight, Routes.CHECKOUT fallback
+  5. Support nav branch untouched
+
+ACCEPTANCE CHECKS: 23/23 PASS
+  PASS S1.01 outer Box heightIn(min=88.dp)
+  PASS S1.02 outer Box contentAlignment=BottomCenter
+  PASS S1.03 navigationBarsPadding on outer Box (2 occurrences: moment+support)
+  PASS S1.04 clip=false propagated >=3 (Box/Surface/Row)
+  PASS S1.05 FAB 52.dp untouched
+  PASS S1.06 FAB offset -24.dp untouched
+  PASS S1.07 shadow 12.dp
+  PASS S1.08 shadow colors 0x5916A34A x2
+  PASS S1.09 press scale 0.93 tween100
+  PASS S1.10 WebCartIcon arcTo wheels
+  PASS S1.11 no addOval in builder
+  PASS S1.12 border 1.dp 0xFFE2E8F0
+  PASS S1.13 shadowElevation 8.dp
+  PASS S1.14 spacers 48.dp x2
+  PASS S1.15 tutorialHighlight sellFab
+  PASS S1.16 sell label i18n t(lang) x2 (icon contentDescription + Text)
+  PASS S1.17 Routes.CHECKOUT fallback
+  PASS S1.18 Surface heightIn(min=64.dp)
+  PASS S1.19 Day tab fallback DayIcon
+  PASS S1.20 moment block braces balanced (boundary-aware)
+  PASS S1.21 whole-file brace balance == 0
+  PASS S1.22 line count 479 (468+11, within +30 drift)
+  PASS S1.23 FAB scale anim label kept
+
+BUILD: BUILD SUCCESSFUL in 1m 35s (:app:assembleDebug, JBR 21 jlink, --no-configuration-cache)
+  Log: c:/temp/gradle_stage1c.txt
+
+CLIP-PATH RESOLUTION:
+  Scaffold bottomBar measured height now includes the 24dp overhang (88dp total),
+  and every clip-capable layer between bottomBar and the FAB carries
+  graphicsLayer(clip=false): outer Box -> Surface -> Row. The FAB's
+  paint-only offset(y=-24.dp) now renders above the Surface top edge,
+  mirroring web .bottom-nav { overflow: visible } + .nav-fab { margin-top: -24px }.
+
+NEXT (Stage 2): sibling FAB layer - pure 64dp nav bar + separate FAB Box
+  aligned BottomCenter with zIndex(1f), conditional on Routes.DAY;
+  outer Box collapses to 64dp when no FAB; Support nav unchanged.

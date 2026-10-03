@@ -484,7 +484,6 @@ fun NavGraph(
                         },
                         onNavigateToInventory = { navController.navigate(Routes.INVENTORY) },
                         onNavigateToExpenses = { navController.navigate(Routes.EXPENSES) },
-                        onOpenSaleSheet = openSaleSheet,
                         onLaunchTutorial = { startPageTutorial("sales") }
                     )
                 }

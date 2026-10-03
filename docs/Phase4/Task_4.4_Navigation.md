@@ -90,3 +90,30 @@ Otherwise no new strings. Existing `morning`, `day`, `closing`, `checkout` keys 
 ## Risk
 
 Low. UI hierarchy only. No logic or DB change. Independently revertible by restoring old `BottomNavBar` layout + removing LaunchedEffect.
+
+---
+
+## SUPERSEDED — web-parity reversal (Sell button)
+
+The DayModeScreen in-page "Hero Sell FAB" prescribed in this task was **removed**.
+The web app (`day.html`) has no sell button inside the day page content: its Sell
+button is the centre FAB of the bottom nav (`#navSale` -> `openSaleSheet()`), which
+sits between the Morning and Close tabs and carries the cart icon + "Sell"/"Benta"
+label. The mobile app already carries that port in `BottomNavBar.kt`, so the
+`DayModeScreen` duplicate was dropped to restore web parity and leave exactly one
+Sell entry point.
+
+Changes:
+- `DayModeScreen.kt` — removed the hero FAB `Box`/`FloatingActionButton` plus its
+  `Text("sell")` label, the now-unused `onOpenSaleSheet` parameter, the
+  `onOpenSaleSheet` preview argument, and the `icons.filled.ShoppingCart` import.
+- `NavGraph.kt` — removed the `onOpenSaleSheet = openSaleSheet` argument.
+- `BottomNavBar.kt` — **unchanged**: the Day-only centre FAB
+  (64dp primary circle, `ShoppingCart` 28dp, `tutorialHighlight("sellFab")`,
+  `onSaleFabClick ?: navigate(Routes.CHECKOUT)`) and `MainScaffold`'s
+  `onSaleFabClick = openSaleSheet` wiring remain the single Sell entry point.
+
+Result: Day screen renders `Morning | [Sell FAB] | Close` with no sell button in the
+page body — matching `day.html`. `tutorialHighlight("sellFab")` now resolves to a
+single element (the nav FAB), matching web tutorial step 7 (`#navSale`).
+

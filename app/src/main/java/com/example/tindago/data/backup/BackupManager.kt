@@ -120,7 +120,7 @@ object BackupManager {
             val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocId)
             val created = DocumentsContract.createDocument(
                 context.contentResolver, parentUri, DocumentsContract.Document.MIME_TYPE_DIR, name
-            ) ?: return null
+            ) ?: return null 
             return DocumentsContract.getDocumentId(created)
         }
 

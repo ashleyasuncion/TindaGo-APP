@@ -137,14 +137,19 @@ fun BottomNavBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 76.dp)
-                .navigationBarsPadding(),
+                .heightIn(min = 76.dp),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // NOTE: the nav-bar inset padding must live INSIDE the Surface.
+                    // On the Surface's own modifier it is applied outside the painted
+                    // background, so the system nav-bar strip showed the page
+                    // background (bar looked detached); here the surface colour
+                    // reaches the bottom edge.
+                    .navigationBarsPadding()
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
@@ -177,12 +182,11 @@ fun BottomNavBar(
 
                 // ── Stage 5 Option 1: Sell FAB Day-only ─ visible only when currentRoute == DAY ──
                 if (currentRoute == Routes.DAY) {
-                    // Hero Sell FAB — 64.dp primary, ShoppingCart 28.dp, bypasses stale guard via onSaleFabClick (Task 4.2)
+                    // Hero Sell FAB — web-port: 52.dp circle, 24.dp icon, no resting shadow
+                    // (web only applies shadow on hover; mobile has no hover, so resting is bare)
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
-                            .offset(y = (-12).dp)
-                            .shadow(8.dp, CircleShape)
+                            .size(52.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary)
                             .clickable {
@@ -192,19 +196,18 @@ fun BottomNavBar(
                             .tutorialHighlight("sellFab", highlightState),
                         contentAlignment = Alignment.Center
                     ) {
-                        // spec: FloatingActionButton(onClick = onSaleFabClick, containerColor = MaterialTheme.colorScheme.primary, modifier = Modifier.size(64.dp)) { Icon(Icons.Default.ShoppingCart, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             androidx.compose.material3.Icon(
                                 Icons.Filled.ShoppingCart,
                                 contentDescription = "sell".t(lang),
                                 tint = Color.White,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                             Text(
                                 "sell".t(lang),
                                 color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -235,14 +238,16 @@ fun BottomNavBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 76.dp)
-                .navigationBarsPadding(),
+                .heightIn(min = 76.dp),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // Same as the 3-moment nav above: the inset padding belongs inside
+                    // the Surface so the bar background paints to the bottom edge.
+                    .navigationBarsPadding()
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically

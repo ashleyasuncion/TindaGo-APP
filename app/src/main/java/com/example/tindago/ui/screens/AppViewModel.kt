@@ -1082,7 +1082,7 @@ class AppViewModel : ViewModel() {
     val saleCart: StateFlow<List<CartLine>> = _saleCart.asStateFlow()
 
     private val _salePayment = MutableStateFlow("cash")
-    /** "cash" or "credit" — the checkout payment method (web setSalePayment parity). */
+    /** "cash", "credit", or "gcash" — the checkout payment method (web setSalePayment parity). */
     val salePayment: StateFlow<String> = _salePayment.asStateFlow()
 
     /** Sum of all cart lines (₱). */
@@ -1092,8 +1092,12 @@ class AppViewModel : ViewModel() {
     fun getCartLineCount(): Int = _saleCart.value.sumOf { it.qty }
 
     fun setSalePayment(payment: String) {
-        if (payment == "cash" || payment == "credit") _salePayment.value = payment
+        if (payment == "cash" || payment == "credit" || payment == "gcash") _salePayment.value = payment
     }
+
+    /** GCash deep-link for the cart total (web openGcashPayment parity: gcash://pay?amount=...). */
+    fun getGcashPaymentUrl(total: Double): String =
+        "gcash://pay?amount=" + java.net.URLEncoder.encode(String.format("%.2f", total), "UTF-8")
 
     /** Add a product to the cart. Same product merges; qty is clamped to stock
      *  (web addToCart parity). Returns true when the item was added/merged. */
@@ -1198,7 +1202,7 @@ class AppViewModel : ViewModel() {
                 customerName = if (isCredit) trimmedNameForSale else null,
                 profit = (line.sellingPrice - (getProductById(line.productId)?.costPrice ?: 0.0)) * line.qty,
                 transactionId = transactionId,
-                paymentMethod = if (isCredit) "credit" else "cash"
+                paymentMethod = _salePayment.value
             )
             addSpecificSale(sale)
             deductStock(line.productId, line.qty)

@@ -461,3 +461,218 @@ DOCS: 6 files 565 insertions staged, split to avoid 6000-char scramble (keep spl
 GIT: 3 code commits + 1 docs+dedust commit, history clean, build green
 NEXT: optional 2-min device smoke (airplane ON) then defense demo 60-90s per Execution_Rollback_Demo.md
 ================================================================================
+================================================================================
+PHASE 4.x -- BOTTOM-NAV WEB-PARITY (Stages 1-3) + KEYBOARD/IME AVOIDANCE -- DONE & SEALED
+Date: 2026-10-03 - 2026-10-04 (sealed commit 6f13e76 2026-10-04 01:23 +0800)
+Status: IMPLEMENTED + VERIFIED + SEALED (assembleDebug green, on-device pixel check, git clean)
+Plan: git/TindaGo/day.html + style.css (web truth @393x852) | docs/Keyboard_Avoidance_Audit.md (105L)
+      STAGE1_REPORT.txt (23/23) + STAGE2_REPORT.txt (24/24) + STAGE3_REPORT.txt (32/32)
+Commits: ad77aae Enforce strict Utang validation and SMS flow
+         6f13e76 Fix keyboard avoidance and web-parity nav (18 files, 468+/51-)
+Type: Offline-first, 0 migration, 0 network, reversible (pure layout + insets)
+--------------------------------------------------------------------------------
+GAP CLOSED: progress2.txt froze at Phase 4 (2026-09-30 / 592137c). The work below
+(2026-10-03-04) lived only in loose STAGE*.txt + Keyboard_Avoidance_Audit.md +
+git commits ad77aae/6f13e76 and was never appended -- now sealed here.
+
+WHAT WAS DONE -- BOTTOM-NAV WEB-PARITY (3 stages, BottomNavBar.kt only):
+
+  STAGE 1 -- Option A: web-faithful unclipped overlay parent (468->479 +11):
+    Outer Box: fillMaxWidth, heightIn(min=88.dp) [64 nav + 24 FAB overhang],
+      navigationBarsPadding() (moved from Surface), graphicsLayer(clip=false),
+      contentAlignment=BottomCenter
+    Surface: heightIn(min=64.dp), graphicsLayer(clip=false), surface/8dp/border 1dp 0xFFE2E8F0
+    Row: graphicsLayer(clip=false), padding h4 v4, Center/CenterVertically
+    FAB internals FROZEN: 52dp, offset -24dp paint-only, shadow 12dp CircleShape
+      clip=false 0x5916A34A x2, press 0.93 tween100, WebCartIcon 24dp arcTo wheels,
+      sellFab highlight, sell/benta i18n x2, Routes.CHECKOUT fallback
+    Fix: Scaffold bottomBar now measures 88dp and every clip-capable layer
+      Box->Surface->Row carries clip=false, mirroring web .bottom-nav{overflow:visible}
+      + .nav-fab{margin-top:-24px}. Crown + glow now paints above Surface.
+
+  STAGE 2 -- Sibling FAB layer over pure 64dp nav (479->496 +17):
+    showSellFab = currentRoute == Routes.DAY gate
+    Outer Box: heightIn(min=if(showSellFab)88.dp else 64.dp) -- collapses to 64dp
+      off-Day like web .bottom-nav
+    Row: Day NavBarTab restored in-flow; spacers conditional (48dp on Day, 0.dp off);
+      arrangement Center on Day / SpaceEvenly off-Day
+    New BoxScope.SellFabOverlay sibling: BottomCenter + zIndex(1f) + offset -24dp;
+      frozen tokens 52/24/0x59/0.93/arcTo/highlight/i18n/fallback
+    Support nav (Morning/Inventory/Debts) untouched.
+
+  STAGE 3 -- Pixel parity + in-flow regression seal (496->498 +2):
+    Revert overlay -> in-flow: RowScope SellFabInRow occupies center slot
+      Morning | 48dp Spacer | (SellFabInRow if showSellFab else DayTab) | 48dp Spacer | Close
+      -- exactly one center item, Sell occupies Day slot like web .nav-fab-item
+    NO sibling overlay, NO zIndex import. Day tab off-Day only, isSelected=false
+      (dead currentRoute==DAY check removed). sellFab highlight + sell i18n +
+      CHECKOUT fallback preserved. DayModeScreen still has no duplicate Sell/Day nav.
+
+  Parity table (web -> Compose, STAGE3_REPORT.txt S3.01-11):
+    --nav-h 64px -> Surface 64.dp | .nav-fab 52px circle -> 52.dp CircleShape+clip
+    margin-top -24px -> offset -24dp + 88dp Box on Day | shadow 0 4px 12px rgba(.35) -> 12dp 0x5916A34A x2
+    :active scale .93/.1s -> 0.93f tween100 | cart 24px stroke2 round -> WebCartIcon 24dp arcTo
+    label 12px/600/0.2px -> 12sp SemiBold 0.2sp primary | spacer 48px -> 48dp x2 conditional
+    border-top 1px #e2e8f0 -> 1dp 0xFFE2E8F0 + elev 8dp | surface #fff/primary #16a34a -> surface/primary bg
+
+
+WHAT WAS DONE -- KEYBOARD / IME AVOIDANCE (app-wide, 4-layer inset strategy):
+
+  Baseline bug: DeveloperPanel ModalBottomSheet Dev Date/Time Override fields hidden behind IME.
+  Layers (docs/Keyboard_Avoidance_Audit.md Sec 1):
+    1 Manifest app/src/main/AndroidManifest.xml:33 android:windowSoftInputMode="adjustResize"
+    2 Edge-to-edge MainActivity.kt onCreate: enableEdgeToEdge() (draws behind system bars)
+    3 Root padding MainActivity.kt:42 Surface Modifier.fillMaxSize().imePadding() -- plain screens
+      shrink above IME; bringIntoView scrolls focused field into view
+    4 Per-window padding: DeveloperPanel.kt:181 + DebtsScreen.kt:216 sheet content Columns .imePadding()
+      (ModalBottomSheet lives in separate window, does not inherit root insets)
+    5 Nav-bar inset BottomNavBar.kt:137-152,240-255 navigationBarsPadding() MOVED from Surface
+      modifier to inner Row (revert of windowInsetsPadding(navigationBars.exclude(ime)) experiment
+      -- no-op because root imePadding() already consumes ime insets; padding on Surface fell
+      outside painted background, bar looked detached with grey strip).
+  Audited no-change: 10 Scaffold screens (AddStock/Checkout/CustomerDebtDetail/Expenses/NewDebt/
+    ProductDetail/RecordPayment/Restock/Settings/Reports) + all AlertDialog/DatePickerDialog +
+    zero custom Dialog/Popup/BottomSheetScaffold/ModalDrawer; 47 text fields all singleLine=true;
+    double-imePadding impossible (disjoint windows).
+
+FILES AFFECTED (6f13e76 --stat 18 files, 468+/51-):
+  app/src/main/AndroidManifest.xml (adjustResize)
+  app/src/main/java/com/example/tindago/MainActivity.kt (+enableEdgeToEdge, +imePadding)
+  app/src/main/java/com/example/tindago/ui/components/DeveloperPanel.kt (+imePadding)
+  app/src/main/java/com/example/tindago/ui/navigation/BottomNavBar.kt (Stages 1-3 + nav inset revert)
+  app/src/main/java/com/example/tindago/ui/navigation/NavGraph.kt (-1 duplicate guard)
+  app/src/main/java/com/example/tindago/ui/screens/DayModeScreen.kt (-34 duplicate FAB)
+  app/src/main/java/com/example/tindago/ui/screens/DebtsScreen.kt (+imePadding)
+  app/src/main/java/com/example/tindago/data/backup/BackupManager.kt (1-line)
+  gradle.properties (10-line edge-to-edge config) + docs/Keyboard_Avoidance_Audit.md (NEW 105L)
+  docs/Phase4/Task_4.4_Navigation.md (update 2026-10-04 00:38) + STAGE1/2/3_COMPLETE.txt + REPORT.txt (NEW)
+  build_check.log (NEW) + build_receipts/ + .kotlin/sessions dedust via git rm --cached
+
+VERIFICATION (all BUILD SUCCESSFUL, 0 errors):
+  Stage1: :app:assembleDebug 1m35s (JBR21 jlink, --no-configuration-cache) log c:/temp/gradle_stage1c.txt 23/23 PASS
+  Stage2: :app:assembleDebug 2m52s (--no-configuration-cache --rerun-tasks, compileDebugKotlin 0 errors) log c:/temp/gradle_stage2e.txt 24/24 PASS
+  Stage3: :app:assembleDebug 30s (compileDebugKotlin 0 errors) log c:/temp/gradle_stage3.txt 32/32 PASS
+  Final : :app:assembleDebug (configuration cache reused, 37 tasks 37 up-to-date) build_check.log 25s
+          :app:compileDebugKotlin + :app:assembleDebug -> BUILD SUCCESSFUL, APK installed over ADB
+  On-device (720x1612, density 270, tutorial overlay dismissed):
+    Bottom bar surface pixels x=8/712: #FFFFFF y1424->1611 flush bottom, no 41px grey strip (was y1424->1570 + 24dp 201,202,204->246,248,250)
+    Bottom row y1608 x0/120/360/600/719: 255,255,255 full width; gesture handle x360 y1588-1594 on white bar;
+    Tab icon/label transitions x360: 1456/1457/1458/1461/1462/1464/1465/1486/1516-1518/1526-1528 identical -- contents did not move
+    Inventory (support nav) same fix confirmed
+    IME audit Sec5: 10 Scaffold screens + 2 sheets verified field visible, action reachable, no gap after IME closes
+  Smoke (airplane ON): auto-open fresh, stale banner+OK archives, CHECKOUT while stale, quick-sell tap, Utang 5 chips+amber (Phase4 still green)
+
+CONSTRAINTS KEPT: Room v12 no downgrade, VM no-arg ctor, .t(lang) en+fil, offline-first, previews compile.
+ROLLBACK: git revert 6f13e76 / ad77aae (keyboard/nav) + c04954c/e816d0a/93cfcd3 (Phase4) -- each green standalone.
+DOCS SEALED: STAGE*.txt + Keyboard_Avoidance_Audit.md consolidated here; progress2.txt now authoritative (progress.txt FROZEN 1517L).
+
+ADDENDUM -- WEB CHECKOUT SELECTED-PRODUCT DISPLAY + ROOT PATCH TOOLING (2026-10-02-10-04):
+  Web parity work instrumented in C:/Users/PLP23-00167/Desktop/Capstone App/ (project root, outside Android repo):
+    checkout.html selectedProductDisplay card (name/category->subcategory/brand/unit/price/ph, stock badge ok>5/low<=5/out<=0,
+      clear x button, aria-live polite/region, tabIndex 0, i18n clear/inStock/lowStock/outOfStock/selectedProduct,
+      persists via state.selectedProduct + syncStep1PickerState; cleared via clearCheckoutProductSelection/addToCart/resetSaleForm)
+    + style.css .selected-product-display + wiring in JS (selectProduct->renderSelectedProductDisplay)
+  ~60 ephemeral patch scripts (bom_strip2.py, build_a/b/c.py, check_init.js, chk_patch*.js, dbg*.js, dump*.py, fix_*.py/js inc
+    fix_checkout.py 2026-10-04, fix_emoji_final.py, fix_mojibake.py, strip_bom_*.py, swap_plus_to_cart.py, scan_step5*.js,
+    patch_*.py/js, verify_*.py/js etc.) + _check_db.txt/_dump53_out.txt/_git_root.txt/_mobile_list.txt etc.
+    were mojibake/BOM/checkout instrumentation for the web SelectedProductDisplay port plan (Stage1-4) described in terminal buffer.
+  Disposition: scripts remain in project root for thesis evidence; canonical web progress is git/TindaGo/progress.txt (not Android
+    progress2.txt). No Android behavior affected. Recommend archiving to _archive/ before defense if examiners query root clutter.
+
+NEXT: Defense demo 60-90s per docs/Phase4/Execution_Rollback_Demo.md + Keyboard_Avoidance_Audit Sec5 surface checklist; then
+      Phase 3 Task 9 login.html (see git/TindaGo/progress.txt).
+================================================================================
+================================================================================
+2026-10-05 — SELECTED PRODUCT DISPLAY (web v2.63/v2.64 parity, Compose)
+             — IMPLEMENTED (uncommitted) — Stage 2.5 / 3 / 4 sealed
+Date: 2026-10-05
+Status: IMPLEMENTED — 4 files modified + 2 new + 1 doc, not yet committed
+        (git status: 6 modified + 6 untracked on feat/phase4-mobile-counter)
+Scope: MOBILE ONLY — parity with web Selected Product Display card
+       (see git/TindaGo/TindaGo_Web_Progress.txt 2026-10-05 and
+        Capstone App/TindaGo_Universal_Progress.txt summary)
+Plan: Port web v2.63/v2.64 Selected Product Display to Compose (Stages 1-4)
+================================================================================
+
+WHAT WAS DONE (mirrors web card app.js/style.css/checkout.html):
+
+1) NEW ui/components/SelectedProductDisplay.kt (212 L):
+   - Compose Card: Green50 bg, Green200 1dp border, 8dp corners, 10/12 padding
+     Row SpaceBetween: left Column weight 1f (name SemiBold bodyMedium max 2
+     + meta cat->subcat — brand / unit bodySmall Gray + price Peso Bold Green600
+     + stock badge bodySmall Medium stockText (qty) Green600/Amber700/Red600)
+     + right IconButton 48dp (Material 48x48 / iOS 44x44) Close 24dp Gray500
+   - Stock: when quantity -> <=0 "outOfStock".t(lang) Red600, <=5 "lowStock"
+     Amber700 else "inStock" Green600; badge speaks "$stockText ($stock)"
+   - Semantics: Card .semantics { liveRegion = LiveRegionMode.Polite
+     contentDescription = "selectedProduct".t(lang) } + clear button
+     contentDescription = "clear".t(lang) (i18n en+fil, mirrors web)
+   - Haptics: clear onClick performHapticFeedback(hapticView) -> onClear()
+     hapticView = LocalView.current captured at composable scope (before return)
+   - 3 Previews: InStock qty20 Coca Cola 1.5L, LowStock qty3 Lucky Me, OutStock qty0 Bear Brand
+
+2) NEW ui/util/Haptics.kt (14 L):
+   fun performHapticFeedback(view: View, type: Int = HapticFeedbackConstants.VIRTUAL_KEY)
+     { view.performHapticFeedback(type) }
+   - Uses View.performHapticFeedback so it can be called from clickable {} / onClick {}
+     non-composable lambdas; VIRTUAL_KEY exists on all API levels (replaced missing
+     SELECTION_CLICK); caller must capture val view = LocalView.current at composable scope
+3) CheckoutScreen.kt (persist + haptics + guard):
+   - Persistence (Stage 2.5): var selectedProductId by remember { mutableIntStateOf(-1) }
+     -> rememberSaveable { mutableIntStateOf(-1) } (line 123) — survives rotation,
+     process death, nav away/back — parity with web state.selectedProduct + syncStep1PickerState()
+   - Suggestion row: val view = LocalView.current captured OUTSIDE Card/Column/items/Row.clickable
+     (line 497) — inside .clickable { if (!outOfStock) { performHapticFeedback(view);
+     productQuery = p.name; selectedProductId = p.id; showSuggestions = false } }
+     Guard: outOfStock rows alpha 0.45, no haptic, no select (matches web v2.58)
+   - Dedup: removed duplicate helper + import HapticFeedbackConstants -> import ui.util.performHapticFeedback
+     grep hapticView|performHapticFeedback(view) -> SelectedProductDisplay:48/128, CheckoutScreen:497/513 OK
+
+4) Strings.kt: added i18n keys mirroring web en+fil (clear/inStock/lowStock/outOfStock/selectedProduct
+   via "key".t(lang) in Card, badge, clear button)
+
+5) Other touched (minor): NavGraph.kt, AppViewModel.kt, AndroidManifest.xml, .idea/misc.xml — selected
+   state wiring / no behavior break; pillars kept: Room v12 no downgrade, VM no-arg ctor, .t(lang),
+   offline-first, previews compile.
+
+6) Docs: NEW SELECTED_PRODUCT_DISPLAY_STAGE23_COMPLETE.md (206 L):
+   Stage 2.5 rememberSaveable DONE, 3.1 keyboard/focus DONE (liveRegion Polite, native IconButton),
+   3.2 TalkBack DONE, 3.3 touch 48dp DONE, 3.4 viewports 375/390/414/768/1024 + landscape + large text
+   pending manual, dark mode OK (semantic colors), 3.5 integration tests plan (Detox/Maestro 4 flows
+   + process death), 3.6 O(1) DONE, Stage 4 haptics DONE — component production-ready.
+
+AFFECTED FILES (mobile):
+- ui/components/SelectedProductDisplay.kt (NEW 212 L)
+- ui/util/Haptics.kt (NEW 14 L)
+- ui/screens/CheckoutScreen.kt (rememberSaveable + haptics + guard)
+- ui/localization/Strings.kt (i18n keys)
+- ui/navigation/NavGraph.kt, ui/screens/AppViewModel.kt, AndroidManifest.xml, .idea/misc.xml
+- SELECTED_PRODUCT_DISPLAY_STAGE23_COMPLETE.md (NEW 206 L)
+
+VERIFICATION (2026-10-05):
+- assembleDebug --offline BUILD SUCCESSFUL 2 s, 37 tasks; compileDebugKotlin 0 errors
+  grep fun performHapticFeedback -> 1 (Haptics.kt:12) deduped OK
+  grep hapticView|performHapticFeedback(view) -> 48/128/497/513 OK
+  grep selectedProductId|rememberSaveable -> CheckoutScreen:123 rememberSaveable OK
+- Previews compile: InStock/LowStock/OutOfStock 3/3
+- Keyboard-a11y: Card liveRegion Polite, clear 48dp, badge speaks qty, no IME gap (parent audit 10+2 OK)
+- Manual pending (device): tap suggestion in-stock -> haptic + card appears qty 1 enabled
+  tap out-of-stock greyed -> no haptic no select; tap clear x -> haptic + card hides qty disables;
+  rotate/process-death/nav-away-back -> selection survives
+
+RELATED:
+- Web parity: git/TindaGo/checkout.html + style.css + app.js + checkout_morph.js (89+/3- across 4 files,
+  see TindaGo_Web_Progress.txt 2026-10-05)  |  Universal: Capstone App/TindaGo_Universal_Progress.txt
+- Prior sealed: 6f13e76/ad77aae keyboard avoidance + nav (3 builds 23/23 24/24 32/32 PASS, bottom bar #FFFFFF flush)
+
+NEXT:
+- Commit: git add SelectedProductDisplay.kt Haptics.kt CheckoutScreen.kt Strings.kt NavGraph.kt
+  AppViewModel.kt SELECTED_PRODUCT_DISPLAY_STAGE23_COMPLETE.md; commit "feat(checkout): Selected Product Display parity Stages 2.5-4"
+- Push feat/phase4-mobile-counter (in sync with origin -> ahead by 1 after commit)
+- Manual device checks: viewport regression + landscape + large text + dark mode + haptic + TalkBack order + adb kill
+================================================================================
+
+     (fixes LocalView.current composition error). Deduped: grep fun -> 1 result in Haptics.kt:12
+
+
+

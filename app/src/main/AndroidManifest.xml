@@ -15,6 +15,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- GCash redirect: allow PackageManager to resolve GCash even on targetSdk 36 (package visibility). -->
+    <queries>
+        <package android:name="com.globe.gcash.android" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="www.gcash.com" />
+        </intent>
+    </queries>
+
     <application
         android:name=".TindaGoApp"
         android:allowBackup="false"

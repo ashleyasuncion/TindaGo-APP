@@ -1,11 +1,15 @@
 package com.example.tindago.ui.screens
 
 import androidx.activity.compose.BackHandler
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,11 +19,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -36,6 +42,7 @@ import com.example.tindago.ui.components.CategorySearchField
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
 import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
+import com.example.tindago.ui.components.SelectedProductDisplay
 import com.example.tindago.ui.components.SupportAppHeader
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -45,6 +52,8 @@ import com.example.tindago.ui.theme.*
 import com.example.tindago.ui.theme.TindaGoTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+import com.example.tindago.ui.util.performHapticFeedback
 
 /**
  * CHECKOUT — standalone multi-item sale page (web v2.63/v2.64 parity).
@@ -63,7 +72,13 @@ fun CheckoutScreen(
     onTutorialClick: () -> Unit,
     // Entry-guard message (day not open / stale day) from the NavGraph — shown
     // on this screen's own snackbar host before backing out.
-    blockedMessage: String? = null
+    blockedMessage: String? = null,
+    // Stage 3 - tutorial overlay <-> wizard alignment. While the checkout
+    // tutorial replays on this page this is the active tutorial step index
+    // (-1 = not running); the screen then drives its 4-step wizard to the
+    // section the tutorial describes (the web checkout is a single page, but
+    // the mobile wizard only composes one step at a time).
+    tutorialStepIndex: Int = -1
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
@@ -105,13 +120,44 @@ fun CheckoutScreen(
     var productQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("") }
     var selectedSubcategory by remember { mutableStateOf("") }
-    var selectedProductId by remember { mutableIntStateOf(-1) }
+    var selectedProductId by rememberSaveable { mutableIntStateOf(-1) }
     var quantity by remember { mutableIntStateOf(1) }
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
     var showSuggestions by remember { mutableStateOf(false) }
     var isEditingQty by remember { mutableStateOf(false) }
     var qtyText by remember { mutableStateOf("1") }
+    // Wizard step state (1..4) — mirrors web v2.64 checkout wizard
+    var step by rememberSaveable { mutableIntStateOf(1) }
+
+    // Stage 3 - tutorial overlay <-> wizard alignment: while the checkout
+    // tutorial replays, follow its step index so the highlighted section is
+    // actually composed (the tutorial backdrop already blocks manual changes).
+    // Tutorial index -> wizard step mirrors the web highlight order:
+    //   0-1 (search / add-to-cart)   -> 1
+    //   2   (cart)                   -> 2
+    //   3   (payment)                -> 3
+    //   4-5 (complete / replay hint) -> 4
+    // The shopper's step when the tutorial starts is remembered and restored
+    // when it ends, so a replay never strands the wizard on a section that was
+    // never reached (the web tutorial never moves the wizard at all).
+    var stepBeforeTutorial by remember { mutableIntStateOf(1) }
+    var tutorialWasActive by remember { mutableStateOf(false) }
+    LaunchedEffect(tutorialStepIndex) {
+        val isTutorialActive = tutorialStepIndex >= 0
+        if (isTutorialActive && !tutorialWasActive) stepBeforeTutorial = step
+        if (isTutorialActive) {
+            val target = tutorialStepIndex.coerceIn(1, 4)
+            if (step != target) {
+                step = target
+                scrollState.scrollTo(0)
+            }
+        } else if (tutorialWasActive && step != stepBeforeTutorial) {
+            step = stepBeforeTutorial
+            scrollState.scrollTo(0)
+        }
+        tutorialWasActive = isTutorialActive
+    }
     // Inline validation errors — shown as supportingText when Utang is selected
     var nameError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
@@ -209,10 +255,55 @@ fun CheckoutScreen(
         qtyText = "1"
         nameError = null
         phoneError = null
+        step = 1
     }
 
     fun toast(msg: String) {
         snackbarScope.launch { snackbarHostState.showSnackbar(msg) }
+    }
+
+    /** Web canGoNextCheckoutStep + showCheckoutStep parity: validate the move,
+     *  toast the same errors the web wizard toasts, then advance. */
+    fun canGoNext(target: Int): Boolean {
+        if (target > step) {
+            if (target >= 2 && cart.isEmpty()) return false
+            if (target >= 4 && payment == "credit" && customerName.isBlank()) return false
+        }
+        return true
+    }
+
+    fun navigateToStep(target: Int) {
+        val t = target.coerceIn(1, 4)
+        if (!canGoNext(t)) {
+            if (t >= 2 && cart.isEmpty()) toast("cartEmpty".t(lang))
+            else if (t >= 4 && payment == "credit") toast("noCustomerCredit".t(lang))
+            return
+        }
+        step = t
+        focusManager.clearFocus()
+        snackbarScope.launch { scrollState.scrollTo(0) }
+    }
+
+    /** Opens the GCash app directly if installed; falls back to https://www.gcash.com. */
+    fun openGcashApp(total: Double) {
+        val pm = smsContext.packageManager
+        try {
+            pm.getLaunchIntentForPackage("com.globe.gcash.android")?.let {
+                smsContext.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            }
+            throw Exception("GCash not installed")
+        } catch (_: Exception) {
+            try {
+                smsContext.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gcash.com"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        .addCategory(Intent.CATEGORY_BROWSABLE)
+                )
+            } catch (_: Exception) {
+                // No handler at all — the "GCash — ₱..." toast is the fallback.
+            }
+        }
     }
 
     // Stage 1: strict validators — shared with Stages 2-4
@@ -269,6 +360,12 @@ fun CheckoutScreen(
                 smsReceiptAmount = cartTotal
                 showSmsReceiptDialog = true
             }
+            if (payment == "gcash") {
+                // Web openGcashPayment parity: open GCash with the total, toast
+                // "GCash — ₱X.XX" (the saleCompleted toast follows in the queue).
+                openGcashApp(cartTotal)
+                toast("payGcash".t(lang) + " — ₱" + String.format("%,.2f", cartTotal))
+            }
             toast("saleCompleted".t(lang))
             resetForm()
         }
@@ -283,7 +380,12 @@ fun CheckoutScreen(
     }
 
     // Leaving with a non-empty cart asks first (web leaveCheckout parity)
+    // Web closeSaleSheet parity: step back through wizard before leaving entirely
     fun leave() {
+        if (step > 1) {
+            navigateToStep(step - 1)
+            return
+        }
         if (cart.isNotEmpty()) showDiscardDialog = true else onBack()
     }
 
@@ -318,12 +420,17 @@ fun CheckoutScreen(
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Progress stepper (always visible — web checkout-stepper parity)
+                    CheckoutStepper(step, lang)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // ── STEP 1 — Select Products (web checkoutStep1 parity) ──
+                    if (step == 1) {
                     // ── Product search ──
                     Text(
                         "addSpecificSale".t(lang),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Gray500,
-                        modifier = Modifier.tutorialHighlight("checkoutSearch", highlightState)
+                        color = Gray500
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
@@ -376,12 +483,16 @@ fun CheckoutScreen(
                             selectedSubcategory = ""
                             showSuggestions = true
                         },
-                        lang = lang
+                        lang = lang,
+                        // Stage 3 parity: the web highlights #checkoutSearchControl
+                        // (the whole search control), not just the label above it.
+                        modifier = Modifier.tutorialHighlight("checkoutSearch", highlightState)
                     )
 
                     // Product suggestions — filtered by drill-down (subcategory ?: category) ∩ search.
                     // Shows when a category/subcategory is active even with empty query.
                     // Out-of-stock rows greyed and unselectable (v2.58).
+                    val view = LocalView.current
                     if (showSuggestions && selectedProductId < 0 && filteredProducts.isNotEmpty() && (productQuery.isNotEmpty() || selectedCategory.isNotBlank())) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -397,6 +508,7 @@ fun CheckoutScreen(
                                             .alpha(if (outOfStock) 0.5f else 1f)
                                             .clickable {
                                                 if (!outOfStock) {
+                                                    performHapticFeedback(view)
                                                     productQuery = p.name
                                                     selectedProductId = p.id
                                                     showSuggestions = false
@@ -445,43 +557,21 @@ fun CheckoutScreen(
                         }
                     }
 
-                    // Selected product summary
-                    if (selectedProduct != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(containerColor = Green50)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column {
-                                    Text(selectedProduct.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                    val selectedSubline = Strings.productSubline(selectedProduct, lang)
-                                    if (selectedSubline.isNotEmpty()) {
-                                        Text(
-                                            selectedSubline,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Green700
-                                        )
-                                    }
-                                    Text(
-                                        "\u20B1${String.format("%,.2f", selectedProduct.sellingPrice)} ${"eachLabel".t(lang)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Gray500
-                                    )
-                                }
-                                Text(
-                                    "${"stockLabel".t(lang)} ${selectedProduct.quantity}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (selectedProduct.quantity <= 5) Red500 else Green600
-                                )
-                            }
-                        }
-                    }
+                    // Selected product display (web v2.63 selectedProductDisplay parity):
+                    // name, category - subcategory + brand/unit, price, a stock
+                    // badge (ok/low/out) and a clear (x) button that deselects the
+                    // product and clears the search input.
+                    SelectedProductDisplay(
+                        product = selectedProduct,
+                        onClear = {
+                            selectedProductId = -1
+                            productQuery = ""
+                            quantity = 1
+                            qtyText = "1"
+                            showSuggestions = false
+                        },
+                        lang = lang
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -580,6 +670,25 @@ fun CheckoutScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    // Step 1 nav — web btnStep1Next parity (disabled while cart empty)
+                    WizardNavRow(
+                        prevLabel = "close".t(lang),
+                        onPrev = { leave() },
+                        nextLabel = "next".t(lang),
+                        onNext = { navigateToStep(2) },
+                        nextEnabled = cart.isNotEmpty()
+                    )
+                    } // end step 1
+
+                    // ── STEP 2 — Review Cart (web checkoutStep2 parity) ──
+                    if (step == 2) {
+                    Text(
+                        "reviewCartTitle".t(lang),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Gray700
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     // ── Cart section ──
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -612,6 +721,11 @@ fun CheckoutScreen(
                             color = Gray400,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
+                        Text(
+                            "cartEmptyHint".t(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Gray400
+                        )
                     } else {
                         Column(
                             modifier = Modifier
@@ -637,6 +751,27 @@ fun CheckoutScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    // Step 2 total (live) — web cartStep2Total parity
+                    SaleTotalCard(cartTotal, lang)
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Step 2 nav — web btnStep2Next parity (disabled while cart empty)
+                    WizardNavRow(
+                        prevLabel = "prev".t(lang),
+                        onPrev = { navigateToStep(1) },
+                        nextLabel = "next".t(lang),
+                        onNext = { navigateToStep(3) },
+                        nextEnabled = cart.isNotEmpty()
+                    )
+                    } // end step 2
+
+                    // ── STEP 3 — Select Payment (web checkoutStep3 parity) ──
+                    // Complete-button gate shared with Step 4 — declared here so
+                    // both sibling step blocks can read it (same page-level state
+                    // backs both steps on the web too).
+                    val utangReady = payment != "credit" || (isNameValid(customerName) && isPhoneValid(customerPhone))
+                    if (step == 3) {
                     // ── Payment method ──
                     Text("paymentMethod".t(lang), style = MaterialTheme.typography.labelMedium, color = Gray500)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -648,12 +783,29 @@ fun CheckoutScreen(
                             modifier = Modifier.weight(1f)
                         )
                         PaymentChoiceButton(
+                            label = "payGcash".t(lang),
+                            selected = payment == "gcash",
+                            onClick = { viewModel.setSalePayment("gcash") },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PaymentChoiceButton(
                             label = "payCredit".t(lang),
                             selected = payment == "credit",
                             onClick = { viewModel.setSalePayment("credit") },
                             modifier = Modifier
                                 .weight(1f)
                                 .tutorialHighlight("checkoutPayCredit", highlightState)
+                        )
+                    }
+
+                    // GCash hint (web gcashHint parity — shown on step 3 here, step 4 confirm below)
+                    if (payment == "gcash") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "gcashHint".t(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = Green600
                         )
                     }
 
@@ -795,25 +947,31 @@ fun CheckoutScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // ── Total ──
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Green50)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("total".t(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(
-                                "\u20B1${String.format("%,.2f", cartTotal)}",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = Green600
-                            )
-                        }
-                    }
+                    // ── STEP 4 is below — the wizard owns its Total + Complete ──
+                    // (utangReady above is shared with Step 4's Complete button.)
+                    // Step 3 nav — web btnStep3Next parity (name gate handled in navigateToStep)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    WizardNavRow(
+                        prevLabel = "prev".t(lang),
+                        onPrev = { navigateToStep(2) },
+                        nextLabel = "next".t(lang),
+                        onNext = { navigateToStep(4) },
+                        nextEnabled = payment != "credit" || customerName.isNotBlank()
+                    )
+                    } // end step 3
+
+                    // ── STEP 4 — Confirm Sale (web checkoutStep4 parity) ──
+                    if (step == 4) {
+                    ConfirmSummaryCard(
+                        cart = cart,
+                        lang = lang,
+                        payment = payment,
+                        customerName = customerName,
+                        customerPhone = customerPhone,
+                        cartTotal = cartTotal
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -828,15 +986,14 @@ fun CheckoutScreen(
                     // setting); heightIn + maxLines=2 let Extra Large text wrap
                     // gracefully inside a slightly taller button instead of
                     // clipping, and Close maxes at one line.
-                    val utangReady = payment != "credit" || (isNameValid(customerName) && isPhoneValid(customerPhone))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(
-                            onClick = { leave() },
+                            onClick = { navigateToStep(3) },
                             modifier = Modifier.weight(0.5f).heightIn(min = 50.dp),
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
-                            Text("close".t(lang), maxLines = 1)
+                            Text("prev".t(lang), maxLines = 1)
                         }
                         Button(
                             onClick = { completeSale(force = false) },
@@ -857,6 +1014,7 @@ fun CheckoutScreen(
                             )
                         }
                     }
+                    } // end step 4
                 }
             }
         }
@@ -1035,6 +1193,214 @@ private fun PaymentChoiceButton(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(label, color = Gray700)
+        }
+    }
+}
+
+/** 4-dot progress stepper + step label — web checkout-stepper parity. */
+@Composable
+private fun CheckoutStepper(step: Int, lang: String) {
+    val labels = listOf("stepProducts", "stepCart", "stepPayment", "stepConfirm")
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            for (i in 1..4) {
+                val done = i < step
+                val active = i == step
+                Surface(
+                    shape = CircleShape,
+                    color = when {
+                        active || done -> Green600
+                        else -> Gray200
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier.size(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (done) "✓" else "$i",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (active || done) Color.White else Gray500
+                        )
+                    }
+                }
+                if (i < 4) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 4.dp)
+                            .height(2.dp)
+                            .background(if (i < step) Green600 else Gray200)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            labels[step - 1].t(lang),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = Gray600
+        )
+    }
+}
+
+/** Back / Next button row at the bottom of each wizard step. */
+@Composable
+private fun WizardNavRow(
+    prevLabel: String,
+    onPrev: () -> Unit,
+    nextLabel: String,
+    onNext: () -> Unit,
+    nextEnabled: Boolean = true
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedButton(
+            onClick = onPrev,
+            modifier = Modifier.weight(0.5f).heightIn(min = 50.dp),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp)
+        ) {
+            Text(prevLabel, maxLines = 1)
+        }
+        Button(
+            onClick = onNext,
+            enabled = nextEnabled,
+            modifier = Modifier
+                .weight(1.5f)
+                .heightIn(min = 50.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Green600),
+            contentPadding = PaddingValues(horizontal = 8.dp)
+        ) {
+            Text(nextLabel, fontWeight = FontWeight.Bold, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
+    }
+}
+
+/** Green total card — web sale-total-display parity (steps 2 + 4). */
+@Composable
+private fun SaleTotalCard(cartTotal: Double, lang: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Green50)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("saleTotalLabel".t(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "₱${String.format("%,.2f", cartTotal)}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Green600
+            )
+        }
+    }
+}
+
+/** Step-4 review card — web updateConfirmSummary parity. */
+@Composable
+private fun ConfirmSummaryCard(
+    cart: List<AppViewModel.CartLine>,
+    lang: String,
+    payment: String,
+    customerName: String,
+    customerPhone: String,
+    cartTotal: Double
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text("confirmSummary".t(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            if (cart.isEmpty()) {
+                Text("confirmEmpty".t(lang), style = MaterialTheme.typography.bodySmall, color = Gray400)
+            } else {
+                cart.forEach { line ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "${line.name} × ${line.qty}",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "₱${String.format("%,.2f", line.subtotal)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    HorizontalDivider(color = Gray100)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                val payLabel = when (payment) {
+                    "gcash" -> "payGcash".t(lang)
+                    "credit" -> "payCredit".t(lang)
+                    else -> "payCash".t(lang)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("confirmPaymentLabel".t(lang), style = MaterialTheme.typography.bodySmall, color = Gray500)
+                    Text(payLabel, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+                if (payment == "credit" && customerName.isNotBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("confirmCustomerLabel".t(lang), style = MaterialTheme.typography.bodySmall, color = Gray500)
+                        Text(customerName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (customerPhone.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("confirmPhoneLabel".t(lang), style = MaterialTheme.typography.bodySmall, color = Gray500)
+                            Text(customerPhone, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+                if (payment == "gcash") {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("gcashHint".t(lang), style = MaterialTheme.typography.bodySmall, color = Green600)
+                }
+            }
+        }
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Green50)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("saleTotalLabel".t(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "₱${String.format("%,.2f", cartTotal)}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Green600
+            )
         }
     }
 }

@@ -501,11 +501,18 @@ fun NavGraph(
                         blockedMessage = "dayNotOpen".t(lang)
                     }
                 }
+                // Stage 3 - when the checkout tutorial is replaying on this page,
+                // pass the active tutorial step index so the screen drives its
+                // 4-step wizard to the matching section (the web checkout is one
+                // page, but the mobile wizard composes a single step at a time).
+                val checkoutTutorialIndex =
+                    if (tutorialActive && pageTutorial?.id == "checkout") tutorialStep else -1
                 CheckoutScreen(
                     viewModel = appViewModel,
                     onBack = { navController.popBackStack() },
                     onTutorialClick = { startPageTutorial("checkout") },
-                    blockedMessage = blockedMessage
+                    blockedMessage = blockedMessage,
+                    tutorialStepIndex = checkoutTutorialIndex
                 )
             }
 
